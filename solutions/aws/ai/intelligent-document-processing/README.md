@@ -4,49 +4,57 @@
 
 ## Solution Overview
 
-Organizations process thousands of documents daily—invoices, contracts, forms, and reports—requiring manual data entry and review. This manual processing is slow, error-prone, and prevents teams from focusing on higher-value work.
+Organizations process thousands of documents daily — invoices, contracts, forms, and reports — requiring manual data entry and review. This manual processing is slow, error-prone, and prevents teams from focusing on higher-value work.
 
-This solution uses AWS AI services (Amazon Textract, Comprehend, and Bedrock) to automatically extract text, forms, and tables from documents. It identifies key data points, classifies document types, and routes them based on content.
+This solution uses AWS AI services to automatically extract text, forms, and tables from documents, identify key data points, classify document types, and route them based on content — with optional human review for low-confidence results.
 
 ### Key Benefits
 
 | Benefit | Impact |
 |---------|--------|
 | Processing Time | 95% reduction |
-| Accuracy | 99%+ data extraction |
-| Cost Savings | 70% reduction in manual processing |
+| Data Extraction Accuracy | 99%+ |
+| Cost Savings | 70% reduction in manual processing costs |
 
 ### Core Technologies
 
-- **Amazon Textract** - Document text and form extraction
-- **Amazon Comprehend** - Natural language processing and classification
-- **Amazon Bedrock** - Generative AI for complex document understanding
-- **AWS Lambda** - Serverless document processing pipelines
-- **Amazon S3** - Secure document storage
+- **Amazon Textract** — Document text, form, and table extraction
+- **Amazon Comprehend** — Entity detection, key phrase extraction, PII identification
+- **AWS Step Functions** — Serverless orchestration of the processing pipeline
+- **AWS Lambda** — Stateless compute for each pipeline stage (python3.12, arm64)
+- **Amazon S3** — Secure document storage with optional cross-region replication
+- **Amazon DynamoDB** — Document processing status and results
+- **Amazon API Gateway** — REST API for document upload and status queries
+- **Amazon Cognito** — User authentication and access control
+- **SageMaker A2I** — Human review workflow for low-confidence extractions
 
 ## Solution Structure
 
 ```
 intelligent-document-processing/
-├── presales/                    # Business case & sales materials
-│   ├── raw/                     # Source files (markdown, CSV)
-│   ├── solution-briefing.pptx   # Executive presentation
-│   ├── statement-of-work.docx   # Formal SOW document
+├── README.md
+├── presales/                        # Business case and sales materials
+│   ├── raw/                         # Source markdown files
+│   ├── solution-briefing.pptx       # Executive presentation
+│   ├── statement-of-work.docx       # Formal SOW
 │   ├── discovery-questionnaire.xlsx
 │   ├── level-of-effort-estimate.xlsx
 │   └── infrastructure-costs.xlsx
-├── delivery/                    # Implementation resources
-│   ├── implementation-guide.md  # Step-by-step deployment
-│   ├── configuration-templates.md
-│   ├── testing-procedures.md
-│   ├── operations-runbook.md
-│   └── scripts/                 # Deployment automation
-│       ├── terraform/           # Infrastructure as Code
-│       ├── python/              # Processing scripts
-│       └── bash/                # Utility scripts
-├── assets/                      # Logos and images
-│   └── logos/
-└── metadata.yml                 # Solution metadata
+├── delivery/                        # Implementation resources
+│   ├── README.md
+│   ├── raw/                         # Source markdown files
+│   ├── detailed-design.docx         # Architecture and design
+│   ├── implementation-guide.docx    # Step-by-step deployment
+│   ├── configuration.xlsx           # Environment configuration reference
+│   ├── project-plan.xlsx
+│   └── automation/
+│       └── terraform/               # Infrastructure as Code
+│           ├── README.md
+│           ├── environments/        # prod / test / dr
+│           ├── modules/             # Reusable Terraform modules
+│           └── setup/               # Backend and secrets setup
+└── assets/
+    └── diagrams/                    # Architecture diagrams
 ```
 
 ## Getting Started
@@ -55,21 +63,14 @@ intelligent-document-processing/
 
 **Option 1: Git Sparse Checkout (Recommended)**
 ```bash
-git clone --filter=blob:none --sparse https://github.com/eoframework/solutions.git
-cd solutions
+git clone --filter=blob:none --sparse https://github.com/eoframework/eof-solutions.git
+cd eof-solutions
 git sparse-checkout set solutions/aws/ai/intelligent-document-processing
 cd solutions/aws/ai/intelligent-document-processing
 ```
 
-**Option 2: Download Script**
-```bash
-curl -O https://raw.githubusercontent.com/eoframework/solutions/main/support/tools/download-solution.sh
-chmod +x download-solution.sh
-./download-solution.sh aws/ai/intelligent-document-processing
-```
-
-**Option 3: Browse Online**
-[View on GitHub](https://github.com/eoframework/solutions/tree/main/solutions/aws/ai/intelligent-document-processing)
+**Option 2: Browse Online**
+[View on GitHub](https://github.com/eoframework/eof-solutions/tree/main/solutions/aws/ai/intelligent-document-processing)
 
 ### For Presales Teams
 
@@ -81,32 +82,33 @@ Navigate to **`presales/`** for customer engagement materials:
 | `statement-of-work.docx` | Formal project scope and terms |
 | `discovery-questionnaire.xlsx` | Customer requirements gathering |
 | `level-of-effort-estimate.xlsx` | Resource and cost estimation |
-| `infrastructure-costs.xlsx` | 3-year infrastructure cost breakdown |
+| `infrastructure-costs.xlsx` | Infrastructure cost breakdown |
 
 ### For Delivery Teams
 
 Navigate to **`delivery/`** for implementation:
 
-1. Review `implementation-guide.md` for prerequisites and steps
-2. Use `configuration-templates.md` for environment setup
-3. Execute scripts in `scripts/` for automated deployment
-4. Follow `testing-procedures.md` for validation
-5. Reference `operations-runbook.md` for ongoing operations
+1. Review `implementation-guide.docx` for prerequisites and deployment steps
+2. Reference `detailed-design.docx` for architecture decisions
+3. Use `configuration.xlsx` for environment-specific settings
+4. Deploy infrastructure via `delivery/automation/terraform/`
 
-## Prerequisites
+See [`delivery/automation/terraform/README.md`](delivery/automation/terraform/README.md) for the full Terraform deployment guide.
 
-- AWS Account with appropriate permissions
-- AWS CLI configured with credentials
-- Terraform 1.0+ (for infrastructure deployment)
-- Python 3.9+ (for processing scripts)
+## Infrastructure Prerequisites
+
+- AWS account with appropriate IAM permissions
+- AWS CLI v2 configured with credentials
+- Terraform 1.10+ (for infrastructure deployment)
 
 ## Use Cases
 
-- **Invoice Processing** - Automated data extraction and validation
-- **Contract Analysis** - Key clause identification and extraction
-- **Form Digitization** - Converting paper forms to structured data
-- **Document Classification** - Automatic routing based on content
+- **Invoice Processing** — Automated extraction of line items, totals, and vendor details
+- **Contract Analysis** — Key clause identification and obligation extraction
+- **Form Digitization** — Converting paper forms to structured data
+- **Document Classification** — Automatic routing based on document type and content
+- **Compliance Review** — PII detection and redaction for regulatory requirements
 
 ---
 
-**[EO Framework](https://eoframework.org)** - Exceptional Outcome Framework
+**[EO Framework](https://eoframework.org)** — Exceptional Outcome Framework

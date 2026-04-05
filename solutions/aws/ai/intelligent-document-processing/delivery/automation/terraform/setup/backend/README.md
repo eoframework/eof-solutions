@@ -66,11 +66,11 @@ cd environments/prod
 terraform init -backend-config=backend.tfvars
 ```
 
-Or use `deploy.sh`:
+Or use `eo-deploy.sh`:
 
 ```bash
 cd environments/prod
-./deploy.sh init
+./eo-deploy.sh init
 ```
 
 ## Multi-Environment Setup

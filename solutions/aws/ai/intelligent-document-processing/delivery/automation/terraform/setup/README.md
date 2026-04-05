@@ -1,80 +1,89 @@
 # Terraform Setup
 
-This directory contains prerequisite infrastructure that must be deployed before the main Terraform environments.
+Prerequisite infrastructure that must be provisioned once before deploying the main IDP environments.
 
 ## Directory Structure
 
 ```
 setup/
-├── backend/           # Remote state infrastructure (S3 + DynamoDB)
-│   ├── state-backend.sh
-│   └── state-backend.bat
-└── secrets/           # Secrets management (Secrets Manager + SSM Parameter Store)
-    ├── modules/secrets/
-    ├── prod/
-    └── test/
+├── backend/           # Remote state backend (S3 + DynamoDB)
+│   ├── state-backend.sh   # Linux/macOS/WSL
+│   └── state-backend.bat  # Windows
+└── secrets/           # Pre-provisioned secrets (Secrets Manager)
+    ├── modules/secrets/   # Reusable secrets module
+    ├── prod/              # Production secrets
+    ├── test/              # Test secrets
+    └── dr/                # DR secrets
 ```
 
 ## Deployment Sequence
 
-Run these setup modules in order before deploying the main environments:
+Run these in order before deploying a main environment for the first time.
 
-### Step 1: Backend (Remote State)
+### Step 1: Remote State Backend
 
-Creates the S3 bucket and DynamoDB table for Terraform remote state storage.
+Creates the S3 bucket and DynamoDB table for Terraform state storage and locking.
 
 ```bash
 cd backend/
 
-# Linux/macOS
-./state-backend.sh prod   # For production
-./state-backend.sh test   # For test
+# Linux/macOS/WSL
+./state-backend.sh prod
+./state-backend.sh test
+./state-backend.sh dr
 
 # Windows
 state-backend.bat prod
 state-backend.bat test
+state-backend.bat dr
 ```
 
-This generates `backend.tfvars` in each environment directory for state configuration.
+This generates `backend.tfvars` in each environment directory.
+
+See [backend/README.md](backend/README.md) for configuration details.
 
 ### Step 2: Secrets
 
-Provisions application secrets in AWS Secrets Manager and SSM Parameter Store.
+Pre-provisions the KMS key and Secrets Manager secrets that the main IDP stack references.
 
 ```bash
+# Production
 cd secrets/prod
-terraform init
-terraform plan
-terraform apply
+terraform init && terraform apply
 
+# Test
 cd ../test
-terraform init
-terraform plan
-terraform apply
+terraform init && terraform apply
+
+# DR (deploy in us-west-2 — DR region)
+cd ../dr
+terraform init && terraform apply
 ```
 
-### Step 3: Main Environments
+See [secrets/README.md](secrets/README.md) for what secrets are created.
+
+### Step 3: Deploy Main Environments
 
 After setup is complete, deploy the main infrastructure:
 
 ```bash
 cd ../../environments/prod
-terraform init -backend-config=backend.tfvars
-terraform plan -var-file=config/project.tfvars -var-file=config/networking.tfvars ...
-terraform apply
+./eo-deploy.sh init
+./eo-deploy.sh plan
+./eo-deploy.sh apply
 ```
 
 ## Prerequisites
 
-- AWS CLI configured with appropriate credentials
-- Terraform >= 1.6.0
-- Sufficient IAM permissions for S3, DynamoDB, Secrets Manager, and SSM
+- Terraform >= 1.10.0
+- AWS CLI v2 configured with appropriate credentials
+- IAM permissions for S3, DynamoDB, Secrets Manager, KMS
 
 ## Environment Isolation
 
-Each environment (prod, test) maintains separate:
-- Remote state buckets and lock tables
-- Secrets and parameter values
+Each environment (prod, test, dr) has separate:
+- Remote state bucket and lock table
+- KMS key and Secrets Manager secrets
 - Infrastructure resources
 
-This ensures complete isolation between environments.
+This ensures no cross-environment dependencies outside of intentional DR replication.

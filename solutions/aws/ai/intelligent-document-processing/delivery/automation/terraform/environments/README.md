@@ -1,22 +1,20 @@
-# Terraform Environments
+# IDP Terraform Environments
 
-This directory contains environment-specific Terraform configurations for deploying the solution infrastructure.
+Environment-specific Terraform configurations for the Intelligent Document Processing solution. Each environment is fully self-contained with its own state, variables, and deployment scripts.
 
-## Directory Structure
+## Environments
 
-```
-environments/
-├── prod/           # Production environment (full deployment)
-├── test/           # Test environment (minimal deployment)
-├── dr/             # Disaster Recovery environment
-└── README.md       # This file
-```
+| Environment | Region | Purpose |
+|-------------|--------|---------|
+| `prod/` | us-east-1 | Production — full feature set, monitoring, DR replication enabled |
+| `test/` | us-east-1 | Test — cost-optimised, relaxed security policies, fast teardown |
+| `dr/` | us-west-2 | Disaster Recovery — passive standby, receives data from prod |
 
 ## Prerequisites
 
-### 1. Terraform Installation
+### Terraform
 
-Install Terraform version 1.6.0 or later:
+Install Terraform 1.10 or later:
 
 ```bash
 # macOS (Homebrew)
@@ -24,16 +22,15 @@ brew install terraform
 
 # Linux (apt)
 wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+  | sudo tee /etc/apt/sources.list.d/hashicorp.list
 sudo apt update && sudo apt install terraform
 
-# Verify installation
+# Verify
 terraform version
 ```
 
-### 2. AWS CLI Installation & Configuration
-
-Install AWS CLI v2:
+### AWS CLI
 
 ```bash
 # macOS
@@ -43,328 +40,150 @@ brew install awscli
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 unzip awscliv2.zip && sudo ./aws/install
 
-# Verify installation
+# Verify
 aws --version
 ```
 
-### 3. AWS Authentication
+### AWS Authentication
 
-Choose ONE of the following authentication methods:
+Choose one method:
 
-#### Option A: AWS CLI Profile (Recommended for local development)
-
-Configure named profiles in `~/.aws/credentials`:
-
-```ini
-[mycompany-prod]
-aws_access_key_id = AKIA...
-aws_secret_access_key = ...
-
-[mycompany-test]
-aws_access_key_id = AKIA...
-aws_secret_access_key = ...
-
-[mycompany-dr]
-aws_access_key_id = AKIA...
-aws_secret_access_key = ...
+**Named profile** (recommended for local development):
+```bash
+aws configure --profile my-profile
+export AWS_PROFILE=my-profile
 ```
 
-Then set the profile in `main.tfvars`:
-
-```hcl
-aws_profile = "mycompany-prod"
-```
-
-#### Option B: Environment Variables (CI/CD pipelines)
-
+**Environment variables** (CI/CD):
 ```bash
 export AWS_ACCESS_KEY_ID="AKIA..."
 export AWS_SECRET_ACCESS_KEY="..."
 export AWS_DEFAULT_REGION="us-east-1"
 ```
 
-#### Option C: IAM Role (EC2/ECS/Lambda)
+**IAM role** — attach a role with the required permissions to the compute resource; no additional configuration needed.
 
-When running on AWS compute services, attach an IAM role with appropriate permissions. No additional configuration needed.
-
-#### Option D: AWS SSO
-
+**AWS SSO**:
 ```bash
 aws configure sso
-aws sso login --profile mycompany-prod
+aws sso login --profile my-profile
 ```
 
-### 4. Remote State Backend (Required for Team Collaboration)
+## Required IAM Permissions
 
-The bootstrap scripts automate creation of S3 bucket and DynamoDB table for Terraform state.
+The deploying principal needs permissions to create and manage:
 
-#### Step 1: Configure org_prefix
+**Compute & Orchestration**
+- Lambda functions, layers, event source mappings
+- Step Functions state machines and activities
+- API Gateway REST APIs, stages, deployments
 
-Edit `main.tfvars` in your target environment to set `org_prefix`:
+**Storage**
+- S3 buckets, bucket policies, replication configurations
+- DynamoDB tables, global secondary indexes
 
-```hcl
-# Required for globally unique S3 bucket names
-org_prefix    = "acme"           # Your organization prefix
-solution_abbr = "vxr"            # Solution abbreviation
-aws_region    = "us-east-1"      # Target region
-```
+**AI Services**
+- Textract (StartDocumentAnalysis, GetDocumentAnalysis)
+- Comprehend (DetectEntities, DetectKeyPhrases, DetectPiiEntities)
+- SageMaker A2I (human review workflows, work teams) — when human review enabled
 
-#### Step 2: Run Bootstrap Script
-
-```bash
-# Option A: Bash script (Linux/macOS/WSL)
-chmod +x setup/setup-backend.sh
-./setup/setup-backend.sh prod
-
-# Option B: Python script (cross-platform)
-pip install boto3
-python setup/setup-backend.py prod
-```
-
-The bootstrap script creates:
-- **S3 Bucket**: `{org_prefix}-{solution_abbr}-{env}-terraform-state`
-- **DynamoDB Table**: `{org_prefix}-{solution_abbr}-{env}-terraform-locks`
-- **backend.tfvars**: Configuration file in the environment directory
-
-#### Step 3: Initialize Terraform
-
-```bash
-cd environments/prod
-terraform init -backend-config=backend.tfvars
-```
-
-#### Backend Naming Convention
-
-| Resource | Pattern | Example |
-|----------|---------|---------|
-| S3 Bucket | `{org}-{abbr}-{env}-terraform-state` | `acme-vxr-prod-terraform-state` |
-| DynamoDB | `{org}-{abbr}-{env}-terraform-locks` | `acme-vxr-prod-terraform-locks` |
-| State Key | `terraform.tfstate` | `terraform.tfstate` |
-
-See `setup/README.md` for detailed documentation.
-
-### 5. Required IAM Permissions
-
-The AWS credentials need permissions to create/manage:
-
-**Core Infrastructure:**
-- VPC, Subnets, NAT Gateway, Internet Gateway
-- Security Groups, Network ACLs
-- EC2 instances, Launch Templates, Auto Scaling Groups
-- Application Load Balancer, Target Groups
-- RDS instances, Subnet Groups, Parameter Groups
-- ElastiCache clusters (Redis)
-- KMS keys
+**Security & Identity**
+- KMS keys, key policies, aliases
 - IAM roles, policies, instance profiles
-- S3 buckets (for logs)
+- Cognito user pools, app clients, user groups — when auth enabled
+- Secrets Manager secrets
 
-**Security:**
-- WAF Web ACLs
-- GuardDuty detectors
-- CloudTrail trails
+**Networking** (when `lambda_vpc_enabled = true`)
+- VPC, subnets, route tables, internet/NAT gateways
+- Security groups, VPC endpoints
 
-**Monitoring:**
-- CloudWatch dashboards, alarms, log groups
-- SNS topics
+**Governance & Observability**
+- CloudWatch log groups, alarms, dashboards
+- SNS topics and subscriptions
 - X-Ray groups
+- AWS Config recorder and rules — when enabled
+- GuardDuty detectors — when enabled
+- AWS Backup vaults and plans — when enabled
+- AWS Budgets — when enabled
 
-**Well-Architected (optional):**
-- AWS Config (recorder, rules, delivery channel)
-- AWS Backup (vaults, plans, selections)
-- AWS Budgets (budgets, notifications, actions)
-- EventBridge (rules for GuardDuty alerting)
+## Configuration File Structure
 
-## Environment Configuration
+Each environment shares a consistent layout:
 
-### File Structure (per environment)
+```
+environments/<env>/
+├── eo-deploy.sh          # Deployment wrapper (Linux/macOS/WSL)
+├── eo-deploy.bat         # Deployment wrapper (Windows)
+├── main.tf               # Module composition and locals
+├── variables.tf          # Variable definitions
+├── outputs.tf            # Output values
+├── providers.tf          # Provider and version constraints
+├── backend.tf            # Remote state backend configuration
+└── config/
+    ├── application.tfvars    # Lambda, API Gateway, Textract, Comprehend, A2I settings
+    ├── best-practices.tfvars # Budgets, Config Rules, GuardDuty
+    ├── database.tfvars       # DynamoDB table settings
+    ├── dr.tfvars             # AWS Backup vault and S3 cross-region replication
+    ├── monitoring.tfvars     # CloudWatch log retention, alarm thresholds, X-Ray
+    ├── networking.tfvars     # VPC CIDR, subnets, VPC endpoints, flow logs
+    ├── project.tfvars        # Project name, environment, ownership tags
+    ├── security.tfvars       # KMS, Cognito policy, security group rules
+    └── storage.tfvars        # S3 bucket and DynamoDB capacity settings
+```
 
-| File | Purpose |
-|------|---------|
-| `main.tfvars` | Solution identity, AWS config, ownership |
-| `well-architected.tfvars` | AWS Well-Architected configuration |
-| `variables.tf` | Variable definitions with validation |
-| `providers.tf` | Terraform & AWS provider configuration |
-| `main.tf` | Module composition and locals |
-| `well-architected.tf` | Well-Architected module composition |
-| `outputs.tf` | Output values |
-| `deploy.sh` | Terraform wrapper script |
+## Common Tags
 
-### Naming Convention
-
-All resources follow the pattern: `{solution_abbr}-{environment}-{resource_type}`
-
-Examples:
-- `smp-prod-vpc` - Production VPC
-- `smp-test-alb` - Test Application Load Balancer
-- `smp-dr-rds` - DR RDS instance
-
-### Common Tags
-
-All resources are automatically tagged via AWS provider `default_tags`:
+All resources are tagged via Terraform provider `default_tags`:
 
 | Tag | Description |
 |-----|-------------|
 | `Solution` | Full solution name |
-| `SolutionAbbr` | Abbreviated solution name |
-| `Environment` | Environment identifier (prod/test/dr) |
-| `Provider` | Provider name (e.g., dell, aws) |
-| `Category` | Category name (e.g., cloud, security) |
+| `SolutionAbbr` | Abbreviated identifier |
+| `Environment` | prod / test / dr |
+| `Provider` | Provider name |
+| `Category` | Solution category |
 | `Region` | AWS region |
-| `ManagedBy` | "terraform" |
+| `ManagedBy` | terraform |
 | `CostCenter` | Cost center code |
-| `Owner` | Owner email |
+| `Owner` | Owner email address |
 | `ProjectCode` | Project tracking code |
 
 ## Quick Start
 
-### 1. Configure Environment
-
-Edit `main.tfvars` with your solution details:
-
-```hcl
-solution_name = "my-solution"
-solution_abbr = "mysol"
-provider_name = "mycompany"
-category_name = "cloud"
-
-aws_region  = "us-east-1"
-aws_profile = "mycompany-prod"  # Optional
-
-cost_center  = "CC-12345"
-owner_email  = "team@mycompany.com"
-project_code = "PRJ-001"
-```
-
-### 2. Configure Backend (providers.tf)
-
-Uncomment and set backend configuration:
-
-```hcl
-backend "s3" {
-  bucket         = "mycompany-terraform-state"
-  key            = "solutions/my-solution/prod/terraform.tfstate"
-  region         = "us-east-1"
-  dynamodb_table = "terraform-state-locks"
-  encrypt        = true
-  profile        = "mycompany-prod"  # Optional
-}
-```
-
-### 3. Deploy
-
 ```bash
-cd environments/prod
+cd environments/prod   # or test, dr
 
-# Initialize Terraform
-./deploy.sh init
+# Initialize (first run or after provider/module changes)
+./eo-deploy.sh init
 
-# Review plan
-./deploy.sh plan
+# Review planned changes — always do this before apply
+./eo-deploy.sh plan
 
-# Apply changes
-./deploy.sh apply
-
-# View outputs
-./deploy.sh output
+# Apply
+./eo-deploy.sh apply
 ```
 
-## Environment Differences
-
-| Feature | prod | test | dr |
-|---------|------|------|-----|
-| **Modules** | core, security, database, cache, monitoring | core, database | core, database, cache, monitoring |
-| **Multi-AZ** | Yes | No | Yes |
-| **NAT Gateway** | HA (per AZ) | Single | HA (per AZ) |
-| **Instance Size** | t3.medium+ | t3.small | t3.medium+ |
-| **RDS Size** | db.t3.medium+ | db.t3.micro | db.t3.medium+ |
-| **Deletion Protection** | Yes | No | Yes |
-| **Backup Retention** | 30 days | 1 day | 30 days |
-| **WAF/GuardDuty** | Yes | No | No |
-| **Region** | us-east-1 | us-east-1 | us-west-2 |
-
-## AWS Well-Architected Framework Integration
-
-The deployment includes optional resources aligned with AWS Well-Architected Framework pillars. Configure these in `well-architected.tfvars`.
-
-### Six Pillars Implementation
-
-| Pillar | Module | Default | Description |
-|--------|--------|---------|-------------|
-| **Operational Excellence** | config-rules | Enabled | AWS Config for compliance monitoring and drift detection |
-| **Security** | guardduty | Disabled* | Enhanced GuardDuty with S3/malware protection |
-| **Reliability** | backup-plans | Enabled | Centralized backup with daily/weekly/monthly schedules |
-| **Performance Efficiency** | - | N/A | Handled via compute/cache module configurations |
-| **Cost Optimization** | budgets | Enabled | Budget alerts and optional auto-remediation |
-| **Sustainability** | - | N/A | Handled via right-sizing in other modules |
-
-*Enhanced GuardDuty is disabled by default because basic GuardDuty is already enabled via the security module.
-
-### Well-Architected Configuration Example
-
-```hcl
-# well-architected.tfvars
-
-# Operational Excellence
-enable_config_rules = true
-config_retention_days = 365
-
-# Reliability
-enable_backup_plans = true
-backup_daily_retention = 30
-backup_weekly_retention = 90
-backup_monthly_retention = 365
-enable_backup_cross_region = true  # For DR
-
-# Cost Optimization
-enable_budgets = true
-monthly_budget_amount = 5000
-budget_alert_thresholds = [50, 80, 100]
-budget_alert_emails = ["finance@company.com"]
-```
-
-### Compliance Mapping
-
-The Well-Architected modules support the following compliance frameworks:
-
-| Compliance | Config Rules | GuardDuty | Backup | Budgets |
-|------------|--------------|-----------|--------|---------|
-| CIS AWS Benchmark | Yes | Yes | - | - |
-| PCI DSS | Yes | Yes | Yes | - |
-| HIPAA | Yes | Yes | Yes | - |
-| SOC 2 | Yes | Yes | Yes | - |
-| GDPR | - | - | Yes | - |
+See individual environment READMEs for environment-specific guidance:
+- [prod/README.md](prod/README.md)
+- [test/README.md](test/README.md)
+- [dr/README.md](dr/README.md)
 
 ## Troubleshooting
 
-### Authentication Errors
-
-```
-Error: No valid credential sources found
-```
-
-Solution: Verify AWS credentials are configured correctly. Check:
-- `aws sts get-caller-identity` works
-- Profile name matches `aws_profile` in main.tfvars
-- Environment variables are set (for CI/CD)
-
-### State Lock Errors
-
-```
-Error: Error acquiring the state lock
-```
-
-Solution: Another Terraform operation may be running. Wait or force unlock:
+**State lock:**
 ```bash
-terraform force-unlock LOCK_ID
+terraform force-unlock <lock-id>
 ```
 
-### Backend Initialization
-
-```
-Error: Backend configuration changed
-```
-
-Solution: Reinitialize with migration:
+**Backend configuration changed:**
 ```bash
-terraform init -migrate-state
+./eo-deploy.sh init -migrate-state
 ```
+
+**Credentials error:**
+```bash
+aws sts get-caller-identity
+```
+
+**check block failure at plan time:**
+See `terraform/README.md` for the full list of check blocks and how to resolve each.
