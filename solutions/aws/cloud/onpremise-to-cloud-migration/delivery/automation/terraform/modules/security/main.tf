@@ -1,91 +1,32 @@
 #------------------------------------------------------------------------------
-# DR Web Application Security Module
+# Cloud Migration - Security Module
 #------------------------------------------------------------------------------
-# Provides core security infrastructure for disaster recovery:
-# - KMS keys for encryption at rest (primary and DR regions)
-# - WAF Web ACL for application protection
-# - Security groups for ALB and EC2
+# Application security resources:
+# - WAF Web ACL with managed rule groups and rate limiting
+# - ALB security group (HTTP/HTTPS from internet)
+# - Application security group (from ALB only)
+# - Database security group (from app tier only)
+#
+# Note: KMS keys are created in the kms module to avoid circular dependency
+# with the networking module (KMS needed for flow log encryption).
 #------------------------------------------------------------------------------
 
-#------------------------------------------------------------------------------
-# KMS Key for Primary Region Encryption
-#------------------------------------------------------------------------------
-resource "aws_kms_key" "primary" {
-  description             = "${var.project.name}-${var.project.environment} primary encryption key"
-  deletion_window_in_days = var.security.kms_deletion_window_days
-  enable_key_rotation     = var.security.enable_kms_key_rotation
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "EnableRootAccess"
-        Effect = "Allow"
-        Principal = {
-          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-        }
-        Action   = "kms:*"
-        Resource = "*"
-      },
-      {
-        Sid    = "AllowRDSAccess"
-        Effect = "Allow"
-        Principal = {
-          Service = "rds.amazonaws.com"
-        }
-        Action = [
-          "kms:Encrypt",
-          "kms:Decrypt",
-          "kms:ReEncrypt*",
-          "kms:GenerateDataKey*",
-          "kms:DescribeKey",
-          "kms:CreateGrant"
-        ]
-        Resource = "*"
-      },
-      {
-        Sid    = "AllowS3Access"
-        Effect = "Allow"
-        Principal = {
-          Service = "s3.amazonaws.com"
-        }
-        Action = [
-          "kms:Encrypt",
-          "kms:GenerateDataKey*"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
-
-  tags = var.common_tags
-}
-
-resource "aws_kms_alias" "primary" {
-  name          = "alias/${var.project.name}-${var.project.environment}"
-  target_key_id = aws_kms_key.primary.key_id
-}
-
-#------------------------------------------------------------------------------
-# Data Sources
-#------------------------------------------------------------------------------
 data "aws_caller_identity" "current" {}
 
 #------------------------------------------------------------------------------
-# WAF Web ACL (for ALB protection)
+# WAF Web ACL
 #------------------------------------------------------------------------------
-resource "aws_wafv2_web_acl" "main" {
+resource "aws_wafv2_web_acl" "this" {
   count = var.security.enable_waf ? 1 : 0
 
   name        = "${var.project.name}-${var.project.environment}-waf"
-  description = "WAF ACL for ${var.project.name} ${var.project.environment} environment"
+  description = "WAF ACL for ${var.project.name} ${var.project.environment}"
   scope       = "REGIONAL"
 
   default_action {
     allow {}
   }
 
-  # AWS Managed Rules - Common Rule Set
   rule {
     name     = "AWSManagedRulesCommonRuleSet"
     priority = 1
@@ -108,7 +49,6 @@ resource "aws_wafv2_web_acl" "main" {
     }
   }
 
-  # AWS Managed Rules - Known Bad Inputs
   rule {
     name     = "AWSManagedRulesKnownBadInputsRuleSet"
     priority = 2
@@ -131,7 +71,6 @@ resource "aws_wafv2_web_acl" "main" {
     }
   }
 
-  # Rate Limiting Rule
   rule {
     name     = "RateLimitRule"
     priority = 3
@@ -166,7 +105,6 @@ resource "aws_wafv2_web_acl" "main" {
 #------------------------------------------------------------------------------
 # Security Groups
 #------------------------------------------------------------------------------
-# ALB Security Group
 resource "aws_security_group" "alb" {
   name        = "${var.project.name}-${var.project.environment}-alb-sg"
   description = "Security group for Application Load Balancer"
@@ -201,7 +139,6 @@ resource "aws_security_group" "alb" {
   })
 }
 
-# Application Security Group
 resource "aws_security_group" "app" {
   name        = "${var.project.name}-${var.project.environment}-app-sg"
   description = "Security group for application instances"
@@ -228,7 +165,6 @@ resource "aws_security_group" "app" {
   })
 }
 
-# Database Security Group
 resource "aws_security_group" "db" {
   name        = "${var.project.name}-${var.project.environment}-db-sg"
   description = "Security group for Aurora database"

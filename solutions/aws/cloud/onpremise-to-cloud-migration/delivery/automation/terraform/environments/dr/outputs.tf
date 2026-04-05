@@ -1,34 +1,34 @@
 #------------------------------------------------------------------------------
-# DR Web Application - DR Environment Outputs
+# Cloud Migration - DR Environment Outputs
 #------------------------------------------------------------------------------
 
 output "vpc_id" {
-  description = "VPC ID"
+  description = "ID of the VPC"
   value       = module.networking.vpc_id
 }
 
 output "alb_dns_name" {
-  description = "ALB DNS name for failover"
+  description = "ALB DNS name (standby)"
   value       = module.compute.alb_dns_name
 }
 
-output "alb_zone_id" {
-  description = "ALB hosted zone ID"
-  value       = module.compute.alb_zone_id
+output "vpn_gateway_id" {
+  description = "ID of the VPN Gateway for hybrid connectivity"
+  value       = module.networking.vpn_gateway_id
 }
 
-output "aurora_cluster_endpoint" {
-  description = "Aurora cluster endpoint (read-only until failover)"
-  value       = module.database.cluster_endpoint
+output "db_endpoint" {
+  description = "Endpoint of the RDS instance"
+  value       = module.database.db_endpoint
 }
 
 output "s3_bucket_id" {
-  description = "S3 bucket ID (receives replicas from primary)"
+  description = "S3 bucket ID (replication destination)"
   value       = module.storage.bucket_id
 }
 
 output "kms_key_arn" {
-  description = "KMS key ARN"
+  description = "ARN of the KMS key"
   value       = module.kms.key_arn
 }
 
@@ -39,6 +39,5 @@ output "dr_status" {
     primary_region = var.aws.dr_region
     standby_mode   = true
     asg_capacity   = var.compute.asg_desired_capacity
-    is_primary_db  = var.database.is_primary_region
   }
 }

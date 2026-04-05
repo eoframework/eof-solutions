@@ -2,7 +2,7 @@
 # Cloud Migration - Test Environment
 #------------------------------------------------------------------------------
 # Minimal test environment for validation:
-# - Single-AZ VPC with VPN for connectivity testing
+# - Single-AZ VPC with optional VPN for connectivity testing
 # - ALB + EC2 ASG for testing migrated applications
 # - RDS single-AZ for migrated databases
 # - S3 for application data (no replication)
@@ -44,43 +44,64 @@ data "aws_region" "current" {}
 # FOUNDATION
 #===============================================================================
 #------------------------------------------------------------------------------
-# Security (KMS + Security Groups - no WAF in test)
+# KMS Key
 #------------------------------------------------------------------------------
-module "security" {
-  source = "../../modules/solution/security"
+module "kms" {
+  source = "../../modules/kms"
 
-  project = local.project
-  security = {
-    kms_deletion_window_days = var.security.kms_deletion_window_days
-    enable_kms_key_rotation  = var.security.enable_kms_key_rotation
-    enable_waf               = var.security.enable_waf
-    waf_rate_limit           = var.security.waf_rate_limit
-  }
-  network = {
-    vpc_id   = module.core.vpc_id
-    app_port = var.compute.app_port
-  }
-  common_tags = local.common_tags
-
-  depends_on = [module.core]
+  name_prefix             = local.name_prefix
+  deletion_window_in_days = var.security.kms_deletion_window_days
+  enable_key_rotation     = var.security.enable_kms_key_rotation
+  tags                    = local.common_tags
 }
 
 #------------------------------------------------------------------------------
-# Core Infrastructure (VPC + ALB + ASG)
+# Networking (VPC + Subnets + NAT + VPN + Flow Logs)
 #------------------------------------------------------------------------------
-module "core" {
-  source = "../../modules/solution/core"
+module "networking" {
+  source = "../../modules/networking"
 
   project = local.project
   network = {
     vpc_cidr                = var.network.vpc_cidr
     enable_nat_gateway      = var.network.enable_nat_gateway
     enable_flow_logs        = var.network.enable_flow_logs
-    public_subnet_cidrs     = var.network.public_subnet_cidrs
-    private_subnet_cidrs    = var.network.private_subnet_cidrs
-    database_subnet_cidrs   = var.network.database_subnet_cidrs
     enable_site_to_site_vpn = var.network.enable_site_to_site_vpn
     on_prem_cidr            = var.network.on_prem_cidr
+  }
+  kms_key_arn = module.kms.key_arn
+  common_tags = local.common_tags
+}
+
+#------------------------------------------------------------------------------
+# Security (WAF + Security Groups)
+#------------------------------------------------------------------------------
+module "security" {
+  source = "../../modules/security"
+
+  project = local.project
+  security = {
+    enable_waf     = var.security.enable_waf
+    waf_rate_limit = var.security.waf_rate_limit
+  }
+  network = {
+    vpc_id   = module.networking.vpc_id
+    app_port = var.compute.app_port
+  }
+  common_tags = local.common_tags
+}
+
+#------------------------------------------------------------------------------
+# Compute (ALB + ASG)
+#------------------------------------------------------------------------------
+module "compute" {
+  source = "../../modules/compute"
+
+  project = local.project
+  network = {
+    vpc_id             = module.networking.vpc_id
+    public_subnet_ids  = module.networking.public_subnet_ids
+    private_subnet_ids = module.networking.private_subnet_ids
   }
   compute = {
     instance_type              = var.compute.instance_type
@@ -98,7 +119,7 @@ module "core" {
   security = {
     alb_security_group_id = module.security.alb_security_group_id
     app_security_group_id = module.security.app_security_group_id
-    kms_key_arn           = module.security.kms_key_arn
+    kms_key_arn           = module.kms.key_arn
   }
   common_tags = local.common_tags
 }
@@ -110,7 +131,7 @@ module "core" {
 # Database (RDS Single-AZ)
 #------------------------------------------------------------------------------
 module "database" {
-  source = "../../modules/solution/database"
+  source = "../../modules/database"
 
   project = local.project
   database = {
@@ -121,33 +142,31 @@ module "database" {
     master_password             = var.database.master_password
     instance_class              = var.database.instance_class
     multi_az                    = var.database.multi_az
-    allocated_storage           = var.database.allocated_storage
-    max_allocated_storage       = var.database.max_allocated_storage
+    storage_size                = var.database.allocated_storage
     backup_retention_days       = var.database.backup_retention_days
     backup_window               = var.database.backup_window
     maintenance_window          = var.database.maintenance_window
     enable_deletion_protection  = var.database.enable_deletion_protection
     skip_final_snapshot         = var.database.skip_final_snapshot
     enable_performance_insights = var.database.enable_performance_insights
-    enable_read_replica         = var.database.enable_read_replica
   }
   network = {
-    database_subnet_ids = module.core.database_subnet_ids
+    database_subnet_ids = module.networking.database_subnet_ids
   }
   security = {
     db_security_group_id = module.security.db_security_group_id
-    kms_key_arn          = module.security.kms_key_arn
+    kms_key_arn          = module.kms.key_arn
   }
   common_tags = local.common_tags
 
-  depends_on = [module.security, module.core]
+  depends_on = [module.security]
 }
 
 #------------------------------------------------------------------------------
 # Storage (S3 - No Replication)
 #------------------------------------------------------------------------------
 module "storage" {
-  source = "../../modules/solution/storage"
+  source = "../../modules/storage"
 
   project = local.project
   storage = {
@@ -158,9 +177,17 @@ module "storage" {
     enable_replication                 = false
   }
   security = {
-    kms_key_arn = module.security.kms_key_arn
+    kms_key_arn = module.kms.key_arn
   }
   common_tags = local.common_tags
+}
 
-  depends_on = [module.security]
+#===============================================================================
+# CHECK BLOCKS (plan-time validation)
+#===============================================================================
+check "budget_requires_notification_email" {
+  assert {
+    condition     = !var.budget.enabled || var.budget.notification_email != ""
+    error_message = "budget.notification_email must be set when budget.enabled = true"
+  }
 }

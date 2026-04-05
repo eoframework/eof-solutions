@@ -4,32 +4,32 @@
 
 output "vpc_id" {
   description = "ID of the VPC"
-  value       = module.core.vpc_id
+  value       = module.networking.vpc_id
 }
 
 output "public_subnet_ids" {
   description = "IDs of the public subnets"
-  value       = module.core.public_subnet_ids
+  value       = module.networking.public_subnet_ids
 }
 
 output "private_subnet_ids" {
   description = "IDs of the private subnets"
-  value       = module.core.private_subnet_ids
+  value       = module.networking.private_subnet_ids
 }
 
 output "alb_dns_name" {
   description = "DNS name of the Application Load Balancer"
-  value       = module.core.alb_dns_name
+  value       = module.compute.alb_dns_name
 }
 
 output "asg_name" {
   description = "Name of the Auto Scaling Group"
-  value       = module.core.asg_name
+  value       = module.compute.asg_name
 }
 
 output "vpn_gateway_id" {
   description = "ID of the VPN Gateway for hybrid connectivity"
-  value       = module.core.vpn_gateway_id
+  value       = module.networking.vpn_gateway_id
 }
 
 output "db_endpoint" {
@@ -49,5 +49,10 @@ output "s3_bucket_id" {
 
 output "kms_key_arn" {
   description = "ARN of the KMS key"
-  value       = module.security.kms_key_arn
+  value       = module.kms.key_arn
+}
+
+output "sns_topic_arn" {
+  description = "ARN of the SNS topic for alerts"
+  value       = module.monitoring.sns_topic_arn
 }

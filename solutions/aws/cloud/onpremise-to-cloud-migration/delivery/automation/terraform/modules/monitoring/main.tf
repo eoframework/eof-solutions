@@ -1,10 +1,10 @@
 #------------------------------------------------------------------------------
-# DR Web Application Monitoring Module
+# Cloud Migration - Monitoring Module
 #------------------------------------------------------------------------------
-# Provides comprehensive monitoring for disaster recovery:
-# - CloudWatch dashboard for DR operations
-# - CloudWatch alarms for RTO/RPO tracking
-# - SNS topic for notifications
+# Operational monitoring for migrated applications:
+# - SNS topic for alerting
+# - CloudWatch dashboard for application + database metrics
+# - CloudWatch alarms for ALB, EC2, and RDS
 #------------------------------------------------------------------------------
 
 locals {
@@ -15,7 +15,7 @@ locals {
 # SNS Topic for Alerts
 #------------------------------------------------------------------------------
 resource "aws_sns_topic" "alerts" {
-  name              = "${local.name_prefix}-dr-alerts"
+  name              = "${local.name_prefix}-alerts"
   kms_master_key_id = var.security.kms_key_id
 
   tags = var.common_tags
@@ -33,11 +33,10 @@ resource "aws_sns_topic_subscription" "email" {
 # CloudWatch Dashboard
 #------------------------------------------------------------------------------
 resource "aws_cloudwatch_dashboard" "main" {
-  dashboard_name = "${local.name_prefix}-dr-operations"
+  dashboard_name = "${local.name_prefix}-operations"
 
   dashboard_body = jsonencode({
     widgets = [
-      # Header
       {
         type   = "text"
         x      = 0
@@ -45,10 +44,9 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 24
         height = 1
         properties = {
-          markdown = "# ${var.project.name} - Disaster Recovery Dashboard"
+          markdown = "# ${var.project.name} - Migration Operations Dashboard"
         }
       },
-      # Route 53 Health Check
       {
         type   = "metric"
         x      = 0
@@ -56,19 +54,14 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 8
         height = 6
         properties = {
-          title  = "Primary Health Check Status"
+          title  = "ALB Request Count"
           region = var.aws.region
           metrics = [
-            ["AWS/Route53", "HealthCheckStatus", "HealthCheckId", var.resources.health_check_id]
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.resources.alb_arn_suffix, { stat = "Sum" }]
           ]
-          stat   = "Minimum"
           period = 60
-          yAxis = {
-            left = { min = 0, max = 1 }
-          }
         }
       },
-      # ALB Request Count
       {
         type   = "metric"
         x      = 8
@@ -76,15 +69,14 @@ resource "aws_cloudwatch_dashboard" "main" {
         width  = 8
         height = 6
         properties = {
-          title  = "ALB Request Count"
+          title  = "ALB 5xx Errors"
           region = var.aws.region
           metrics = [
-            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", var.resources.alb_name, { stat = "Sum" }]
+            ["AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", var.resources.alb_arn_suffix, { stat = "Sum" }]
           ]
           period = 60
         }
       },
-      # ALB Target Response Time
       {
         type   = "metric"
         x      = 16
@@ -95,60 +87,20 @@ resource "aws_cloudwatch_dashboard" "main" {
           title  = "ALB Target Response Time"
           region = var.aws.region
           metrics = [
-            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.resources.alb_name, { stat = "Average" }],
+            ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", var.resources.alb_arn_suffix, { stat = "Average" }],
             ["...", { stat = "p99" }]
           ]
           period = 60
         }
       },
-      # Aurora Replication Lag
       {
         type   = "metric"
         x      = 0
         y      = 7
-        width  = 12
-        height = 6
-        properties = {
-          title  = "Aurora Global DB Replication Lag (ms)"
-          region = var.aws.region
-          metrics = [
-            ["AWS/RDS", "AuroraGlobalDBReplicationLag", "DBClusterIdentifier", var.resources.aurora_cluster_id]
-          ]
-          stat   = "Average"
-          period = 60
-          annotations = {
-            horizontal = [
-              { value = var.monitoring.rpo_target_ms, label = "RPO Target" }
-            ]
-          }
-        }
-      },
-      # S3 Replication Latency
-      {
-        type   = "metric"
-        x      = 12
-        y      = 7
-        width  = 12
-        height = 6
-        properties = {
-          title  = "S3 Replication Latency (seconds)"
-          region = var.aws.region
-          metrics = [
-            ["AWS/S3", "ReplicationLatency", "SourceBucket", var.resources.s3_bucket_id, "DestinationBucket", var.resources.s3_dr_bucket_id, "RuleId", "replicate-all"]
-          ]
-          stat   = "Maximum"
-          period = 300
-        }
-      },
-      # ASG Capacity
-      {
-        type   = "metric"
-        x      = 0
-        y      = 13
         width  = 8
         height = 6
         properties = {
-          title  = "Auto Scaling Group Capacity"
+          title  = "ASG Capacity"
           region = var.aws.region
           metrics = [
             ["AWS/AutoScaling", "GroupDesiredCapacity", "AutoScalingGroupName", var.resources.asg_name],
@@ -160,11 +112,10 @@ resource "aws_cloudwatch_dashboard" "main" {
           period = 60
         }
       },
-      # EC2 CPU Utilization
       {
         type   = "metric"
         x      = 8
-        y      = 13
+        y      = 7
         width  = 8
         height = 6
         properties = {
@@ -177,18 +128,47 @@ resource "aws_cloudwatch_dashboard" "main" {
           period = 60
         }
       },
-      # Aurora CPU Utilization
       {
         type   = "metric"
         x      = 16
-        y      = 13
+        y      = 7
         width  = 8
         height = 6
         properties = {
-          title  = "Aurora CPU Utilization"
+          title  = "RDS CPU Utilization"
           region = var.aws.region
           metrics = [
-            ["AWS/RDS", "CPUUtilization", "DBClusterIdentifier", var.resources.aurora_cluster_id, { stat = "Average" }]
+            ["AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", var.resources.rds_instance_id, { stat = "Average" }]
+          ]
+          period = 60
+        }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 13
+        width  = 12
+        height = 6
+        properties = {
+          title  = "RDS Free Storage Space (bytes)"
+          region = var.aws.region
+          metrics = [
+            ["AWS/RDS", "FreeStorageSpace", "DBInstanceIdentifier", var.resources.rds_instance_id, { stat = "Average" }]
+          ]
+          period = 300
+        }
+      },
+      {
+        type   = "metric"
+        x      = 12
+        y      = 13
+        width  = 12
+        height = 6
+        properties = {
+          title  = "RDS Database Connections"
+          region = var.aws.region
+          metrics = [
+            ["AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", var.resources.rds_instance_id, { stat = "Average" }]
           ]
           period = 60
         }
@@ -200,7 +180,6 @@ resource "aws_cloudwatch_dashboard" "main" {
 #------------------------------------------------------------------------------
 # CloudWatch Alarms
 #------------------------------------------------------------------------------
-# ALB 5xx Errors
 resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
   alarm_name          = "${local.name_prefix}-alb-5xx-errors"
   comparison_operator = "GreaterThanThreshold"
@@ -214,88 +193,83 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
-    LoadBalancer = var.resources.alb_name
+    LoadBalancer = var.resources.alb_arn_suffix
   }
 
   tags = var.common_tags
 }
 
-# ALB Response Time
-resource "aws_cloudwatch_metric_alarm" "alb_latency" {
-  alarm_name          = "${local.name_prefix}-alb-latency"
+resource "aws_cloudwatch_metric_alarm" "ec2_cpu" {
+  alarm_name          = "${local.name_prefix}-ec2-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
-  metric_name         = "TargetResponseTime"
-  namespace           = "AWS/ApplicationELB"
-  period              = 60
-  extended_statistic  = "p99"
-  threshold           = var.monitoring.alb_latency_threshold
-  alarm_description   = "ALB p99 latency exceeded threshold"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-
-  dimensions = {
-    LoadBalancer = var.resources.alb_name
-  }
-
-  tags = var.common_tags
-}
-
-# ASG Unhealthy Hosts
-resource "aws_cloudwatch_metric_alarm" "unhealthy_hosts" {
-  alarm_name          = "${local.name_prefix}-unhealthy-hosts"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
-  metric_name         = "UnHealthyHostCount"
-  namespace           = "AWS/ApplicationELB"
-  period              = 60
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 300
   statistic           = "Average"
-  threshold           = 0
-  alarm_description   = "Unhealthy targets detected in target group"
+  threshold           = var.monitoring.ec2_cpu_threshold
+  alarm_description   = "EC2 CPU utilization exceeded threshold"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
-    LoadBalancer = var.resources.alb_name
-    TargetGroup  = var.resources.target_group_name
+    AutoScalingGroupName = var.resources.asg_name
   }
 
   tags = var.common_tags
 }
 
-# Aurora CPU High
-resource "aws_cloudwatch_metric_alarm" "aurora_cpu" {
-  alarm_name          = "${local.name_prefix}-aurora-cpu"
+resource "aws_cloudwatch_metric_alarm" "rds_cpu" {
+  alarm_name          = "${local.name_prefix}-rds-cpu-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 3
   metric_name         = "CPUUtilization"
   namespace           = "AWS/RDS"
   period              = 300
   statistic           = "Average"
-  threshold           = var.monitoring.aurora_cpu_threshold
-  alarm_description   = "Aurora CPU utilization exceeded threshold"
+  threshold           = var.monitoring.rds_cpu_threshold
+  alarm_description   = "RDS CPU utilization exceeded threshold"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
-    DBClusterIdentifier = var.resources.aurora_cluster_id
+    DBInstanceIdentifier = var.resources.rds_instance_id
   }
 
   tags = var.common_tags
 }
 
-# Aurora Connections
-resource "aws_cloudwatch_metric_alarm" "aurora_connections" {
-  alarm_name          = "${local.name_prefix}-aurora-connections"
+resource "aws_cloudwatch_metric_alarm" "rds_connections" {
+  alarm_name          = "${local.name_prefix}-rds-connections-high"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "DatabaseConnections"
   namespace           = "AWS/RDS"
   period              = 300
   statistic           = "Average"
-  threshold           = var.monitoring.aurora_connections_threshold
-  alarm_description   = "Aurora database connections exceeded threshold"
+  threshold           = var.monitoring.rds_connections_threshold
+  alarm_description   = "RDS connection count exceeded threshold"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
-    DBClusterIdentifier = var.resources.aurora_cluster_id
+    DBInstanceIdentifier = var.resources.rds_instance_id
+  }
+
+  tags = var.common_tags
+}
+
+resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
+  alarm_name          = "${local.name_prefix}-rds-storage-low"
+  comparison_operator = "LessThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "FreeStorageSpace"
+  namespace           = "AWS/RDS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 10737418240  # 10 GB in bytes
+  alarm_description   = "RDS free storage space is low"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+
+  dimensions = {
+    DBInstanceIdentifier = var.resources.rds_instance_id
   }
 
   tags = var.common_tags

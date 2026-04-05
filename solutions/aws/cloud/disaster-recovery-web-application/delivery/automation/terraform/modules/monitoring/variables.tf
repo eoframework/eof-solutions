@@ -20,13 +20,13 @@ variable "aws" {
 variable "resources" {
   description = "Resource identifiers for monitoring"
   type = object({
-    health_check_id   = optional(string, "")
-    alb_name          = string
-    target_group_name = string
-    asg_name          = string
-    aurora_cluster_id = string
-    s3_bucket_id      = optional(string, "")
-    s3_dr_bucket_id   = optional(string, "")
+    health_check_id         = optional(string, "")
+    alb_arn_suffix          = string
+    target_group_arn_suffix = string
+    asg_name                = string
+    aurora_cluster_id       = string
+    s3_bucket_id            = optional(string, "")
+    s3_dr_bucket_id         = optional(string, "")
   })
 }
 

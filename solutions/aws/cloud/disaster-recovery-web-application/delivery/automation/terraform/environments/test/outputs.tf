@@ -4,12 +4,12 @@
 
 output "vpc_id" {
   description = "ID of the VPC"
-  value       = module.core.vpc_id
+  value       = module.networking.vpc_id
 }
 
 output "alb_dns_name" {
   description = "DNS name of the Application Load Balancer"
-  value       = module.core.alb_dns_name
+  value       = module.compute.alb_dns_name
 }
 
 output "aurora_cluster_endpoint" {
@@ -24,5 +24,5 @@ output "s3_bucket_id" {
 
 output "kms_key_arn" {
   description = "ARN of the KMS key"
-  value       = module.security.kms_key_arn
+  value       = module.kms.key_arn
 }

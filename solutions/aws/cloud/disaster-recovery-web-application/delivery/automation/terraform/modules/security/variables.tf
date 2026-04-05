@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# DR Web Application Security Module - Variables
+# DR Web Application - Security Module Variables
 #------------------------------------------------------------------------------
 
 variable "project" {
@@ -13,10 +13,8 @@ variable "project" {
 variable "security" {
   description = "Security configuration"
   type = object({
-    kms_deletion_window_days = optional(number, 30)
-    enable_kms_key_rotation  = optional(bool, true)
-    enable_waf               = optional(bool, true)
-    waf_rate_limit           = optional(number, 2000)
+    enable_waf     = optional(bool, true)
+    waf_rate_limit = optional(number, 2000)
   })
   default = {}
 }

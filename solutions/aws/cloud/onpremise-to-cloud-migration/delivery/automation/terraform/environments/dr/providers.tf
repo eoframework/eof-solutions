@@ -1,6 +1,7 @@
 #------------------------------------------------------------------------------
-# DR Web Application - Production Environment Providers
+# Cloud Migration - DR Environment Providers
 #------------------------------------------------------------------------------
+# Secondary region standby deployment
 
 terraform {
   required_version = ">= 1.10.0"
@@ -18,20 +19,10 @@ terraform {
   }
 }
 
+# DR region as primary for this environment
 provider "aws" {
-  region  = var.aws.region
-  profile = var.aws.profile != "" ? var.aws.profile : null
-
-  default_tags {
-    tags = local.common_tags
-  }
-}
-
-# DR region provider for cross-region resources
-provider "aws" {
-  alias   = "dr"
-  region  = var.aws.dr_region
-  profile = var.aws.profile != "" ? var.aws.profile : null
+  region  = var.aws.region  # us-west-2 for DR
+  profile = try(var.aws.profile, null) != "" ? var.aws.profile : null
 
   default_tags {
     tags = local.common_tags

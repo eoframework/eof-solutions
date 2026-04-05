@@ -4,7 +4,7 @@
 # Secondary region deployment for failover
 
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.10.0"
 
   backend "s3" {
     # Values loaded from backend.tfvars via -backend-config flag
@@ -14,7 +14,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.0"
+      version = "~> 6.0"
     }
   }
 }

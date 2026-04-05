@@ -1,11 +1,11 @@
 #------------------------------------------------------------------------------
-# DR Web Application - DR Environment (Secondary Region)
+# Cloud Migration - DR Environment
 #------------------------------------------------------------------------------
-# Secondary region deployment for disaster recovery:
-# - Aurora Global Database secondary cluster
-# - Standby ALB and ASG (pilot light - min 0)
-# - Route 53 failover configuration
-# - Receives S3 cross-region replication from primary
+# Standby DR deployment for cloud migration solution:
+# - Warm standby VPC with VPN connectivity to on-premises
+# - Minimal compute (scaled down or pilot light)
+# - RDS read replica or restored backup
+# - S3 with cross-region replication destination
 #------------------------------------------------------------------------------
 
 #------------------------------------------------------------------------------
@@ -58,23 +58,25 @@ module "kms" {
 }
 
 #------------------------------------------------------------------------------
-# Networking (VPC + Subnets + NAT + Flow Logs)
+# Networking (VPC + Subnets + NAT + VPN + Flow Logs)
 #------------------------------------------------------------------------------
 module "networking" {
   source = "../../modules/networking"
 
   project = local.project
   network = {
-    vpc_cidr           = var.network.vpc_cidr
-    enable_nat_gateway = var.network.enable_nat_gateway
-    enable_flow_logs   = var.network.enable_flow_logs
+    vpc_cidr                = var.network.vpc_cidr
+    enable_nat_gateway      = var.network.enable_nat_gateway
+    enable_flow_logs        = var.network.enable_flow_logs
+    enable_site_to_site_vpn = var.network.enable_site_to_site_vpn
+    on_prem_cidr            = var.network.on_prem_cidr
   }
   kms_key_arn = module.kms.key_arn
   common_tags = local.common_tags
 }
 
 #------------------------------------------------------------------------------
-# Security (WAF + Security Groups - WAF disabled until failover)
+# Security (WAF + Security Groups)
 #------------------------------------------------------------------------------
 module "security" {
   source = "../../modules/security"
@@ -92,7 +94,7 @@ module "security" {
 }
 
 #------------------------------------------------------------------------------
-# Compute (ALB + ASG with pilot light capacity)
+# Compute (ALB + ASG - standby capacity)
 #------------------------------------------------------------------------------
 module "compute" {
   source = "../../modules/compute"
@@ -106,10 +108,11 @@ module "compute" {
   compute = {
     instance_type              = var.compute.instance_type
     ami_id                     = var.compute.ami_id
-    asg_min_size               = var.compute.asg_min_size  # 0 for pilot light
+    asg_min_size               = var.compute.asg_min_size
     asg_max_size               = var.compute.asg_max_size
     asg_desired_capacity       = var.compute.asg_desired_capacity
     root_volume_size           = var.compute.root_volume_size
+    data_volume_size           = var.compute.data_volume_size
     app_port                   = var.compute.app_port
     health_check_path          = var.compute.health_check_path
     ssl_certificate_arn        = var.compute.ssl_certificate_arn
@@ -127,26 +130,26 @@ module "compute" {
 # CORE SOLUTION
 #===============================================================================
 #------------------------------------------------------------------------------
-# Database (Aurora Global Database - Secondary Cluster)
+# Database (RDS standby)
 #------------------------------------------------------------------------------
 module "database" {
   source = "../../modules/database"
 
   project = local.project
   database = {
-    is_primary_region           = var.database.is_primary_region  # false for DR
+    engine                      = var.database.engine
     engine_version              = var.database.engine_version
     database_name               = var.database.database_name
     master_username             = var.database.master_username
     master_password             = var.database.master_password
     instance_class              = var.database.instance_class
-    instance_count              = var.database.instance_count
+    multi_az                    = var.database.multi_az
+    storage_size                = var.database.allocated_storage
     backup_retention_days       = var.database.backup_retention_days
     backup_window               = var.database.backup_window
     maintenance_window          = var.database.maintenance_window
     enable_deletion_protection  = var.database.enable_deletion_protection
     skip_final_snapshot         = var.database.skip_final_snapshot
-    monitoring_interval         = var.database.monitoring_interval
     enable_performance_insights = var.database.enable_performance_insights
   }
   network = {
@@ -162,7 +165,7 @@ module "database" {
 }
 
 #------------------------------------------------------------------------------
-# Storage (S3 - Receives replicas from primary)
+# Storage (S3 - Replication destination from primary)
 #------------------------------------------------------------------------------
 module "storage" {
   source = "../../modules/storage"

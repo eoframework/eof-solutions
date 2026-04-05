@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# DR Web Application Core Module - Variables
+# Cloud Migration - Compute Module Variables
 #------------------------------------------------------------------------------
 
 variable "project" {
@@ -13,22 +13,23 @@ variable "project" {
 variable "network" {
   description = "Network configuration"
   type = object({
-    vpc_cidr           = string
-    enable_nat_gateway = optional(bool, true)
-    enable_flow_logs   = optional(bool, true)
+    vpc_id             = string
+    public_subnet_ids  = list(string)
+    private_subnet_ids = list(string)
   })
 }
 
 variable "compute" {
   description = "Compute configuration"
   type = object({
-    instance_type              = optional(string, "t3.medium")
+    instance_type              = optional(string, "m5.large")
     ami_id                     = optional(string, "")
     asg_min_size               = optional(number, 2)
-    asg_max_size               = optional(number, 10)
-    asg_desired_capacity       = optional(number, 2)
-    root_volume_size           = optional(number, 30)
-    app_port                   = optional(number, 80)
+    asg_max_size               = optional(number, 20)
+    asg_desired_capacity       = optional(number, 4)
+    root_volume_size           = optional(number, 50)
+    data_volume_size           = optional(number, 0)
+    app_port                   = optional(number, 443)
     health_check_path          = optional(string, "/health")
     ssl_certificate_arn        = optional(string, "")
     instance_profile_arn       = optional(string, "")

@@ -1,20 +1,10 @@
 #------------------------------------------------------------------------------
-# DR Web Application Security Module - Outputs
+# DR Web Application - Security Module Outputs
 #------------------------------------------------------------------------------
 
-output "kms_key_arn" {
-  description = "ARN of the primary KMS key"
-  value       = aws_kms_key.primary.arn
-}
-
-output "kms_key_id" {
-  description = "ID of the primary KMS key"
-  value       = aws_kms_key.primary.key_id
-}
-
 output "waf_web_acl_arn" {
-  description = "ARN of the WAF Web ACL"
-  value       = var.security.enable_waf ? aws_wafv2_web_acl.main[0].arn : null
+  description = "ARN of the WAF Web ACL (null if WAF disabled)"
+  value       = var.security.enable_waf ? aws_wafv2_web_acl.this[0].arn : null
 }
 
 output "alb_security_group_id" {

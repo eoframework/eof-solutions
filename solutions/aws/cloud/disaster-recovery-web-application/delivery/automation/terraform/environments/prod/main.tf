@@ -41,44 +41,65 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 #===============================================================================
-# FOUNDATION - Core infrastructure that other modules depend on
+# FOUNDATION
 #===============================================================================
 #------------------------------------------------------------------------------
-# Security (KMS + WAF + Security Groups)
+# KMS Key
 #------------------------------------------------------------------------------
-module "security" {
-  source = "../../modules/solution/security"
+module "kms" {
+  source = "../../modules/kms"
 
-  project = local.project
-  security = {
-    kms_deletion_window_days = var.security.kms_deletion_window_days
-    enable_kms_key_rotation  = var.security.enable_kms_key_rotation
-    enable_waf               = var.security.enable_waf
-    waf_rate_limit           = var.security.waf_rate_limit
-  }
-  network = {
-    vpc_id   = module.core.vpc_id
-    app_port = var.compute.app_port
-  }
-  common_tags = local.common_tags
-
-  depends_on = [module.core]
+  name_prefix             = local.name_prefix
+  deletion_window_in_days = var.security.kms_deletion_window_days
+  enable_key_rotation     = var.security.enable_kms_key_rotation
+  tags                    = local.common_tags
 }
 
 #------------------------------------------------------------------------------
-# Core Infrastructure (VPC + ALB + ASG)
+# Networking (VPC + Subnets + NAT + Flow Logs)
 #------------------------------------------------------------------------------
-module "core" {
-  source = "../../modules/solution/core"
+module "networking" {
+  source = "../../modules/networking"
 
   project = local.project
   network = {
-    vpc_cidr              = var.network.vpc_cidr
-    enable_nat_gateway    = var.network.enable_nat_gateway
-    enable_flow_logs      = var.network.enable_flow_logs
-    public_subnet_cidrs   = var.network.public_subnet_cidrs
-    private_subnet_cidrs  = var.network.private_subnet_cidrs
-    database_subnet_cidrs = var.network.database_subnet_cidrs
+    vpc_cidr           = var.network.vpc_cidr
+    enable_nat_gateway = var.network.enable_nat_gateway
+    enable_flow_logs   = var.network.enable_flow_logs
+  }
+  kms_key_arn = module.kms.key_arn
+  common_tags = local.common_tags
+}
+
+#------------------------------------------------------------------------------
+# Security (WAF + Security Groups)
+#------------------------------------------------------------------------------
+module "security" {
+  source = "../../modules/security"
+
+  project = local.project
+  security = {
+    enable_waf     = var.security.enable_waf
+    waf_rate_limit = var.security.waf_rate_limit
+  }
+  network = {
+    vpc_id   = module.networking.vpc_id
+    app_port = var.compute.app_port
+  }
+  common_tags = local.common_tags
+}
+
+#------------------------------------------------------------------------------
+# Compute (ALB + ASG)
+#------------------------------------------------------------------------------
+module "compute" {
+  source = "../../modules/compute"
+
+  project = local.project
+  network = {
+    vpc_id             = module.networking.vpc_id
+    public_subnet_ids  = module.networking.public_subnet_ids
+    private_subnet_ids = module.networking.private_subnet_ids
   }
   compute = {
     instance_type              = var.compute.instance_type
@@ -95,19 +116,19 @@ module "core" {
   security = {
     alb_security_group_id = module.security.alb_security_group_id
     app_security_group_id = module.security.app_security_group_id
-    kms_key_arn           = module.security.kms_key_arn
+    kms_key_arn           = module.kms.key_arn
   }
   common_tags = local.common_tags
 }
 
 #===============================================================================
-# CORE SOLUTION - Primary solution components
+# CORE SOLUTION
 #===============================================================================
 #------------------------------------------------------------------------------
 # Database (Aurora Global Database - Primary)
 #------------------------------------------------------------------------------
 module "database" {
-  source = "../../modules/solution/database"
+  source = "../../modules/database"
 
   project = local.project
   database = {
@@ -127,22 +148,22 @@ module "database" {
     enable_performance_insights = var.database.enable_performance_insights
   }
   network = {
-    database_subnet_ids = module.core.database_subnet_ids
+    database_subnet_ids = module.networking.database_subnet_ids
   }
   security = {
     db_security_group_id = module.security.db_security_group_id
-    kms_key_arn          = module.security.kms_key_arn
+    kms_key_arn          = module.kms.key_arn
   }
   common_tags = local.common_tags
 
-  depends_on = [module.security, module.core]
+  depends_on = [module.security]
 }
 
 #------------------------------------------------------------------------------
 # Storage (S3 with Cross-Region Replication)
 #------------------------------------------------------------------------------
 module "storage" {
-  source = "../../modules/solution/storage"
+  source = "../../modules/storage"
 
   project = local.project
   storage = {
@@ -157,37 +178,37 @@ module "storage" {
     enable_replication_time_control    = var.storage.enable_replication_time_control
   }
   security = {
-    kms_key_arn = module.security.kms_key_arn
+    kms_key_arn = module.kms.key_arn
   }
   monitoring = {
     sns_topic_arn = module.monitoring.sns_topic_arn
   }
   common_tags = local.common_tags
 
-  depends_on = [module.security, module.dr]
+  depends_on = [module.dr]
 }
 
 #===============================================================================
-# OPERATIONS - Monitoring, compliance, and DR
+# OPERATIONS
 #===============================================================================
 #------------------------------------------------------------------------------
 # Monitoring (CloudWatch Dashboard + Alarms)
 #------------------------------------------------------------------------------
 module "monitoring" {
-  source = "../../modules/solution/monitoring"
+  source = "../../modules/monitoring"
 
   project = local.project
   aws = {
     region = var.aws.region
   }
   resources = {
-    health_check_id   = var.dr.enabled ? module.dr.health_check_id : null
-    alb_arn           = module.core.alb_arn
-    target_group_arn  = module.core.target_group_arn
-    asg_name          = module.core.asg_name
-    aurora_cluster_id = module.database.cluster_id
-    s3_bucket_id      = module.storage.bucket_id
-    s3_dr_bucket_id   = var.dr.vault_enabled ? module.dr.dr_bucket_id : null
+    health_check_id         = var.dr.enabled ? module.dr.health_check_id : null
+    alb_arn_suffix          = module.compute.alb_arn_suffix
+    target_group_arn_suffix = module.compute.target_group_arn_suffix
+    asg_name                = module.compute.asg_name
+    aurora_cluster_id       = module.database.cluster_id
+    s3_bucket_id            = module.storage.bucket_id
+    s3_dr_bucket_id         = var.dr.vault_enabled ? module.dr.dr_bucket_id : null
   }
   monitoring = {
     alert_email                  = var.monitoring.alert_email
@@ -198,18 +219,18 @@ module "monitoring" {
     rpo_target_ms                = var.dr.rpo_target_minutes * 60 * 1000
   }
   security = {
-    kms_key_id = module.security.kms_key_id
+    kms_key_id = module.kms.key_id
   }
   common_tags = local.common_tags
 
-  depends_on = [module.core, module.database, module.dr]
+  depends_on = [module.compute, module.database, module.dr]
 }
 
 #------------------------------------------------------------------------------
 # Disaster Recovery (Route 53 Failover + Backup + Replication)
 #------------------------------------------------------------------------------
 module "dr" {
-  source = "../../modules/solution/dr"
+  source = "../../modules/dr"
 
   providers = {
     aws    = aws
@@ -218,16 +239,16 @@ module "dr" {
 
   project = local.project
   dr = {
-    enabled                              = var.dr.enabled
-    vault_enabled                        = var.dr.vault_enabled
-    replication_enabled                  = var.dr.replication_enabled
-    backup_retention_days                = var.dr.backup_retention_days
-    dr_backup_retention_days             = var.dr.dr_backup_retention_days
-    enable_weekly_backup                 = var.dr.enable_weekly_backup
-    weekly_backup_retention_days         = var.dr.weekly_backup_retention_days
-    replication_lag_threshold_ms         = var.dr.rpo_target_minutes * 60 * 1000
-    vault_kms_deletion_window_days       = var.dr.vault_kms_deletion_window_days
-    vault_transition_to_ia_days          = var.dr.vault_transition_to_ia_days
+    enabled                                  = var.dr.enabled
+    vault_enabled                            = var.dr.vault_enabled
+    replication_enabled                      = var.dr.replication_enabled
+    backup_retention_days                    = var.dr.backup_retention_days
+    dr_backup_retention_days                 = var.dr.dr_backup_retention_days
+    enable_weekly_backup                     = var.dr.enable_weekly_backup
+    weekly_backup_retention_days             = var.dr.weekly_backup_retention_days
+    replication_lag_threshold_ms             = var.dr.rpo_target_minutes * 60 * 1000
+    vault_kms_deletion_window_days           = var.dr.vault_kms_deletion_window_days
+    vault_transition_to_ia_days              = var.dr.vault_transition_to_ia_days
     vault_noncurrent_version_expiration_days = var.dr.vault_noncurrent_version_expiration_days
   }
   dns = {
@@ -238,38 +259,38 @@ module "dr" {
     health_check_failure_threshold = var.dns.health_check_failure_threshold
   }
   primary = {
-    alb_dns_name      = module.core.alb_dns_name
-    alb_zone_id       = module.core.alb_zone_id
+    alb_dns_name      = module.compute.alb_dns_name
+    alb_zone_id       = module.compute.alb_zone_id
     aurora_cluster_id = module.database.cluster_id
   }
   security = {
-    kms_key_arn = module.security.kms_key_arn
+    kms_key_arn = module.kms.key_arn
   }
   monitoring = {
     sns_topic_arn = module.monitoring.sns_topic_arn
   }
   common_tags = local.common_tags
 
-  depends_on = [module.security, module.core, module.database]
+  depends_on = [module.compute, module.database]
 }
 
 #===============================================================================
-# INTEGRATIONS - Cross-module connections
+# INTEGRATIONS
 #===============================================================================
 #------------------------------------------------------------------------------
-# WAF Web ACL Association (security → core)
+# WAF Web ACL Association
 #------------------------------------------------------------------------------
 resource "aws_wafv2_web_acl_association" "alb" {
   count = var.security.enable_waf ? 1 : 0
 
-  resource_arn = module.core.alb_arn
+  resource_arn = module.compute.alb_arn
   web_acl_arn  = module.security.waf_web_acl_arn
 
-  depends_on = [module.security, module.core]
+  depends_on = [module.security, module.compute]
 }
 
 #------------------------------------------------------------------------------
-# Database CloudWatch Alarms (monitoring → database)
+# Database CloudWatch Alarms (cross-module)
 #------------------------------------------------------------------------------
 resource "aws_cloudwatch_metric_alarm" "aurora_cpu" {
   alarm_name          = "${local.name_prefix}-aurora-cpu-high"
@@ -313,4 +334,21 @@ resource "aws_cloudwatch_metric_alarm" "aurora_connections" {
   tags = local.common_tags
 
   depends_on = [module.database, module.monitoring]
+}
+
+#===============================================================================
+# CHECK BLOCKS (plan-time validation)
+#===============================================================================
+check "budget_requires_notification_email" {
+  assert {
+    condition     = !var.budget.enabled || var.budget.notification_email != ""
+    error_message = "budget.notification_email must be set when budget.enabled = true"
+  }
+}
+
+check "dr_requires_distinct_regions" {
+  assert {
+    condition     = var.aws.region != var.aws.dr_region
+    error_message = "aws.region and aws.dr_region must be different regions"
+  }
 }
