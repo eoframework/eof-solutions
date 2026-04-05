@@ -1,4 +1,4 @@
-# Production Environment - Terraform & Provider Configuration
+# Test Environment - Terraform & Provider Configuration
 #
 # This file configures:
 # - Terraform version and required providers
@@ -11,7 +11,7 @@
 # - Either: AWS profile configured, OR environment variables set
 
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.10.0"
 
   # Remote state storage in S3
   #
@@ -36,7 +36,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.0"
+      version = "~> 6.0"
     }
   }
 }

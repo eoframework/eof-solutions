@@ -22,6 +22,10 @@ resource "aws_vpc" "this" {
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-vpc"
   })
+
+  lifecycle {
+    ignore_changes = [tags_all]
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -34,6 +38,10 @@ resource "aws_internet_gateway" "this" {
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-igw"
   })
+
+  lifecycle {
+    ignore_changes = [tags_all]
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -52,6 +60,10 @@ resource "aws_subnet" "public" {
     Name = "${var.name_prefix}-public-${count.index + 1}"
     Tier = "public"
   })
+
+  lifecycle {
+    ignore_changes = [tags_all]
+  }
 }
 
 resource "aws_route_table" "public" {
@@ -60,6 +72,10 @@ resource "aws_route_table" "public" {
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-public-rt"
   })
+
+  lifecycle {
+    ignore_changes = [tags_all]
+  }
 }
 
 resource "aws_route" "public_internet" {
@@ -90,6 +106,10 @@ resource "aws_subnet" "private" {
     Name = "${var.name_prefix}-private-${count.index + 1}"
     Tier = "private"
   })
+
+  lifecycle {
+    ignore_changes = [tags_all]
+  }
 }
 
 resource "aws_route_table" "private" {
@@ -100,6 +120,10 @@ resource "aws_route_table" "private" {
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-private-rt-${count.index + 1}"
   })
+
+  lifecycle {
+    ignore_changes = [tags_all]
+  }
 }
 
 resource "aws_route" "private_nat" {
@@ -132,6 +156,10 @@ resource "aws_subnet" "database" {
     Name = "${var.name_prefix}-database-${count.index + 1}"
     Tier = "database"
   })
+
+  lifecycle {
+    ignore_changes = [tags_all]
+  }
 }
 
 resource "aws_route_table_association" "database" {
@@ -150,6 +178,10 @@ resource "aws_db_subnet_group" "this" {
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-db-subnet-group"
   })
+
+  lifecycle {
+    ignore_changes = [tags_all]
+  }
 }
 
 resource "aws_elasticache_subnet_group" "this" {
@@ -161,6 +193,10 @@ resource "aws_elasticache_subnet_group" "this" {
   tags = merge(var.tags, {
     Name = "${var.name_prefix}-cache-subnet-group"
   })
+
+  lifecycle {
+    ignore_changes = [tags_all]
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -176,6 +212,10 @@ resource "aws_eip" "nat" {
   })
 
   depends_on = [aws_internet_gateway.this]
+
+  lifecycle {
+    ignore_changes = [tags_all]
+  }
 }
 
 resource "aws_nat_gateway" "this" {
@@ -189,6 +229,10 @@ resource "aws_nat_gateway" "this" {
   })
 
   depends_on = [aws_internet_gateway.this]
+
+  lifecycle {
+    ignore_changes = [tags_all]
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -218,6 +262,10 @@ resource "aws_cloudwatch_log_group" "flow_logs" {
   kms_key_id        = var.kms_key_arn
 
   tags = var.tags
+
+  lifecycle {
+    ignore_changes = [tags_all]
+  }
 }
 
 resource "aws_iam_role" "flow_logs" {

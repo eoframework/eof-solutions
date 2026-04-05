@@ -53,6 +53,24 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 #===============================================================================
+# CONFIGURATION CHECKS - Validate variable combinations at plan time
+#===============================================================================
+
+check "budget_requires_alert_emails" {
+  assert {
+    condition     = !var.budget.enabled || length(var.budget.alert_emails) > 0
+    error_message = "budget.alert_emails must contain at least one address when budget.enabled is true."
+  }
+}
+
+check "regions_are_distinct" {
+  assert {
+    condition     = var.aws.region != try(var.aws.dr_region, "")
+    error_message = "aws.region and aws.dr_region must be different regions."
+  }
+}
+
+#===============================================================================
 # FOUNDATION - Core infrastructure that other modules depend on
 #===============================================================================
 #------------------------------------------------------------------------------
