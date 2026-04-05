@@ -1,7 +1,8 @@
 #------------------------------------------------------------------------------
 # Secrets Setup - TEST Environment
 #------------------------------------------------------------------------------
-# Pre-provisions secrets before deploying main infrastructure.
+# Pre-provisions IDP secrets before deploying main infrastructure.
+# Run once before the first `terraform apply` in environments/test.
 #
 # Usage:
 #   cd setup/secrets/test
@@ -10,15 +11,15 @@
 #------------------------------------------------------------------------------
 
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.10.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.0"
+      version = "~> 6.0"
     }
     random = {
       source  = "hashicorp/random"
-      version = ">= 3.0"
+      version = "~> 3.0"
     }
   }
 }
@@ -28,7 +29,7 @@ terraform {
 #------------------------------------------------------------------------------
 
 variable "aws_region" {
-  description = "AWS region"
+  description = "AWS region (must match environments/test)"
   type        = string
   default     = "us-east-1"
 }
@@ -49,7 +50,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = "test-smp"
+      Project     = "idp-test"
       Environment = "test"
       ManagedBy   = "Terraform"
       Purpose     = "Secrets"
@@ -64,20 +65,18 @@ provider "aws" {
 module "secrets" {
   source = "../modules/secrets"
 
-  name_prefix = "test-smp"
+  name_prefix = "idp-test"
 
-  # Feature flags - Test settings (cost-optimized)
-  create_kms_key        = false  # Use AWS managed key for test
-  create_db_secret      = true
-  create_cache_secret   = true
-  create_api_key_secret = false
+  # Test: AWS managed key (cost-optimized), API key only, no workteam secret
+  create_kms_key         = false  # Use AWS managed key in test to reduce cost
+  create_api_key_secret  = true
+  create_workteam_secret = false  # Human review disabled in test by default
 
-  # Secret configuration
-  secret_recovery_window = 0  # Immediate deletion for test
+  secret_recovery_window = 0  # Immediate deletion for test (faster teardown)
 
   tags = {
     Environment = "test"
-    Solution    = "sample-solution"
+    Solution    = "intelligent-document-processing"
   }
 }
 
@@ -86,18 +85,13 @@ module "secrets" {
 #------------------------------------------------------------------------------
 
 output "kms_key_arn" {
-  description = "KMS key ARN"
+  description = "KMS key ARN for secrets encryption (null in test - uses AWS managed key)"
   value       = module.secrets.kms_key_arn
 }
 
-output "db_password_secret_name" {
-  description = "Database password secret name"
-  value       = module.secrets.db_password_secret_name
-}
-
-output "cache_auth_token_param_name" {
-  description = "Cache auth token parameter name"
-  value       = module.secrets.cache_auth_token_param_name
+output "api_key_secret_name" {
+  description = "Secrets Manager secret name for IDP API key"
+  value       = module.secrets.api_key_secret_name
 }
 
 output "secrets_summary" {

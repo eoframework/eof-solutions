@@ -19,7 +19,7 @@ api = {
 }
 
 application = {
-  lambda_runtime = "python3.11"  # Lambda runtime
+  lambda_runtime = "python3.12"  # Lambda runtime
   lambda_vpc_enabled = false  # Enable Lambda VPC mode
 }
 

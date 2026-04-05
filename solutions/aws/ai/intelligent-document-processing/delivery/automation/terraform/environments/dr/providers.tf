@@ -1,80 +1,67 @@
-# DR Environment - Terraform & Provider Configuration
-#
-# This file configures:
-# - Terraform version and required providers
-# - S3 backend for remote state (team collaboration)
-# - AWS provider with authentication options
-#
+#------------------------------------------------------------------------------
+# IDP Disaster Recovery Environment - Terraform & Provider Configuration
+#------------------------------------------------------------------------------
 # Prerequisites:
-# - AWS CLI installed and configured
-# - S3 bucket and DynamoDB table for state (see README.md)
-# - Either: AWS profile configured, OR environment variables set
+#   - Terraform >= 1.10.0 installed
+#   - AWS CLI installed and configured
+#   - S3 bucket and DynamoDB table for remote state (see setup/ directory)
+#   - AWS credentials: profile, environment variables, or IAM role
 #
-# Note: DR environment typically deploys to a different region than prod
+# Note: DR state bucket is created in the DR region (us-west-2) for resilience
+#------------------------------------------------------------------------------
 
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.10.0"
 
-  # Remote state storage in S3
+  #----------------------------------------------------------------------------
+  # Remote State - S3 Backend
   #
-  # SETUP: Run bootstrap script to create S3 bucket and DynamoDB table:
-  #   ../setup/setup-backend.sh dr
-  #   OR
+  # Run the bootstrap script to create the S3 bucket and DynamoDB lock table:
   #   python ../setup/setup-backend.py dr
   #
-  # This creates backend.tfvars, then initialize with:
+  # This generates backend.tfvars. Initialise with:
   #   terraform init -backend-config=backend.tfvars
   #
-  # Naming Convention:
-  #   S3 Bucket:      {org_prefix}-{solution_abbr}-dr-terraform-state
-  #   DynamoDB Table: {org_prefix}-{solution_abbr}-dr-terraform-locks
-  #   State Key:      terraform.tfstate
-  #
-  # Note: DR state bucket is created in DR region (us-west-2) for resilience
-  #
+  # Naming convention:
+  #   S3 bucket:       {org}-idp-dr-terraform-state
+  #   DynamoDB table:  {org}-idp-dr-terraform-locks
+  #----------------------------------------------------------------------------
   backend "s3" {
-    # Backend values loaded from backend.tfvars via -backend-config flag
-    # See setup/README.md for setup instructions
+    # All values supplied via -backend-config=backend.tfvars at init time
   }
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.0"
+      version = "~> 6.0" # Allows 6.x patches, blocks accidental 7.0 upgrade
     }
   }
 }
 
-# AWS Provider Configuration
+#------------------------------------------------------------------------------
+# Primary AWS Provider - DR region (us-west-2)
 #
-# Authentication options (in order of precedence):
-# 1. Environment variables: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
-# 2. Shared credentials file with profile: ~/.aws/credentials
-# 3. IAM role (when running on EC2/ECS/Lambda)
-#
-# For local development, set aws.profile in project.tfvars
-# For CI/CD pipelines, use environment variables or IAM roles
-
+# Authentication (in precedence order):
+#   1. Environment variables: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+#   2. Named profile:         aws.profile in project.tfvars → ~/.aws/credentials
+#   3. IAM instance/task/web identity role (CI/CD and AWS compute)
+#------------------------------------------------------------------------------
 provider "aws" {
-  region = var.aws.region
-
-  # Optional: Use named profile from ~/.aws/credentials
-  # Leave empty/null to use default credential chain
+  region  = var.aws.region
   profile = try(var.aws.profile, null) != "" ? var.aws.profile : null
 
-  # Common tags applied to ALL resources automatically
-  # These are populated from config/*.tfvars via locals
   default_tags {
     tags = local.common_tags
   }
 }
 
-# DR Provider pointing back to Production region (for reading prod state, etc.)
-# In DR, this points back to the production region
+#------------------------------------------------------------------------------
+# Secondary AWS Provider - Points back to production region (us-east-1)
+# Used for reading prod state or cross-region operations initiated from DR
+#------------------------------------------------------------------------------
 provider "aws" {
-  alias  = "dr"
-  region = try(var.aws.dr_region, "us-east-1")  # DR region points back to prod
-
+  alias   = "dr"
+  region  = try(var.aws.dr_region, "us-east-1")
   profile = try(var.aws.profile, null) != "" ? var.aws.profile : null
 
   default_tags {

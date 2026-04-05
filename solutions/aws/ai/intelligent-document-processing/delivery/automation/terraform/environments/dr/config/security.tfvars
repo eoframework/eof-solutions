@@ -1,28 +1,60 @@
 #------------------------------------------------------------------------------
 # Security Configuration - DR Environment
 #------------------------------------------------------------------------------
-# Generated from configuration on 2025-12-02 11:50:18
-#
-# To regenerate: python generate-tfvars.py /path/to/solution
-#------------------------------------------------------------------------------
 
 auth = {
-  advanced_security_mode = "AUDIT"  # Advanced security mode
-  auto_verified_attributes = ["email"]  # Auto-verified attributes
-  callback_urls = []  # OAuth callback URLs
-  domain = ""  # Cognito domain prefix
-  enabled = true  # Enable Cognito authentication
-  logout_urls = []  # OAuth logout URLs
-  mfa_configuration = "OPTIONAL"  # MFA configuration
-  password_minimum_length = 12  # Minimum password length
-  password_require_lowercase = true  # Require lowercase
-  password_require_numbers = true  # Require numbers
-  password_require_symbols = true  # Require symbols
-  password_require_uppercase = true  # Require uppercase
-  username_attributes = ["email"]  # Username attributes
+  advanced_security_mode     = "AUDIT"
+  auto_verified_attributes   = ["email"]
+  callback_urls              = []
+  domain                     = ""
+  enabled                    = true
+  logout_urls                = []
+  mfa_configuration          = "OPTIONAL"
+  password_minimum_length    = 12
+  password_require_lowercase = true
+  password_require_numbers   = true
+  password_require_symbols   = true
+  password_require_uppercase = true
+  username_attributes        = ["email"]
 }
 
 security = {
-  enable_kms_key_rotation = true  # Enable KMS key rotation
-  kms_deletion_window_days = 30  # KMS key deletion window (days)
+  enable_kms_key_rotation  = true
+  kms_deletion_window_days = 30
+}
+
+#------------------------------------------------------------------------------
+# Security Groups
+# Only created when application.lambda_vpc_enabled = true.
+# DR uses the same SG topology as PROD (deployed in us-west-2).
+#------------------------------------------------------------------------------
+
+security_groups = {
+  "idp-lambda" = {
+    description = "IDP Lambda functions - HTTPS egress to AWS service endpoints only"
+
+    egress_cidr = {
+      "egress_tcp_443_all" = {
+        from_port   = 443
+        to_port     = 443
+        ip_protocol = "tcp"
+        cidr_block  = "0.0.0.0/0"
+        description = "HTTPS to AWS service endpoints and VPC endpoints"
+      }
+    }
+  }
+
+  "idp-vpc-endpoints" = {
+    description = "IDP VPC Interface Endpoints - accept HTTPS from Lambda functions only"
+
+    ingress_sg = {
+      "ingress_tcp_443_lambda" = {
+        from_port                 = 443
+        to_port                   = 443
+        ip_protocol               = "tcp"
+        source_security_group_key = "idp-lambda"
+        description               = "HTTPS from IDP Lambda functions"
+      }
+    }
+  }
 }

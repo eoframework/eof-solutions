@@ -7,7 +7,7 @@
 #------------------------------------------------------------------------------
 
 variable "name_prefix" {
-  description = "Name prefix for all secrets (e.g., prod-smp, test-smp)"
+  description = "Name prefix for all secrets (e.g., idp-prod, idp-test)"
   type        = string
 
   validation {
@@ -23,28 +23,6 @@ variable "tags" {
 }
 
 #------------------------------------------------------------------------------
-# Secret Name Suffixes
-#------------------------------------------------------------------------------
-
-variable "db_password_secret_suffix" {
-  description = "Suffix for database password secret name"
-  type        = string
-  default     = "db-password"
-}
-
-variable "cache_auth_token_param_suffix" {
-  description = "Suffix for cache auth token SSM parameter path"
-  type        = string
-  default     = "cache/auth-token"
-}
-
-variable "api_key_secret_suffix" {
-  description = "Suffix for API key secret name"
-  type        = string
-  default     = "api-key"
-}
-
-#------------------------------------------------------------------------------
 # Feature Flags
 #------------------------------------------------------------------------------
 
@@ -54,22 +32,32 @@ variable "create_kms_key" {
   default     = true
 }
 
-variable "create_db_secret" {
-  description = "Create database password secret"
-  type        = bool
-  default     = true
-}
-
-variable "create_cache_secret" {
-  description = "Create cache auth token parameter"
-  type        = bool
-  default     = true
-}
-
 variable "create_api_key_secret" {
-  description = "Create API key secret"
+  description = "Create an API key secret for external service integrations"
+  type        = bool
+  default     = true
+}
+
+variable "create_workteam_secret" {
+  description = "Create a secret to store SageMaker A2I workteam credentials"
   type        = bool
   default     = false
+}
+
+#------------------------------------------------------------------------------
+# Secret Name Suffixes
+#------------------------------------------------------------------------------
+
+variable "api_key_secret_suffix" {
+  description = "Suffix for the API key secret name"
+  type        = string
+  default     = "api-key"
+}
+
+variable "workteam_secret_suffix" {
+  description = "Suffix for the workteam credentials secret name"
+  type        = string
+  default     = "workteam-credentials"
 }
 
 #------------------------------------------------------------------------------

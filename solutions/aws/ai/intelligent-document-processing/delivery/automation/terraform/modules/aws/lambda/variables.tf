@@ -145,6 +145,21 @@ variable "kms_key_arn" {
 }
 
 #------------------------------------------------------------------------------
+# Architecture
+#------------------------------------------------------------------------------
+
+variable "architectures" {
+  description = "Instruction set architecture (x86_64 or arm64). arm64 (Graviton2) is 20% cheaper per GB-second."
+  type        = list(string)
+  default     = ["arm64"]
+
+  validation {
+    condition     = length(var.architectures) == 1 && contains(["x86_64", "arm64"], var.architectures[0])
+    error_message = "architectures must be a single-element list containing either x86_64 or arm64."
+  }
+}
+
+#------------------------------------------------------------------------------
 # Logging
 #------------------------------------------------------------------------------
 
@@ -152,6 +167,28 @@ variable "log_retention_days" {
   description = "CloudWatch log retention in days"
   type        = number
   default     = 30
+}
+
+variable "log_format" {
+  description = "CloudWatch log format (Text or JSON). JSON enables structured logging and CloudWatch Insights queries."
+  type        = string
+  default     = "JSON"
+
+  validation {
+    condition     = contains(["Text", "JSON"], var.log_format)
+    error_message = "log_format must be Text or JSON."
+  }
+}
+
+variable "log_level" {
+  description = "Log level filter applied when log_format is JSON (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)."
+  type        = string
+  default     = "INFO"
+
+  validation {
+    condition     = contains(["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"], var.log_level)
+    error_message = "log_level must be one of TRACE, DEBUG, INFO, WARN, ERROR, FATAL."
+  }
 }
 
 #------------------------------------------------------------------------------

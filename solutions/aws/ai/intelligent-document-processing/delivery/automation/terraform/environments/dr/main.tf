@@ -18,21 +18,20 @@
 # Locals
 #------------------------------------------------------------------------------
 locals {
-  environment = basename(path.module)
-  name_prefix = "${var.solution.abbr}-${local.environment}"
+  name_prefix = "${var.project_name}-${var.env}"
 
   #----------------------------------------------------------------------------
   # Shared Configuration Objects
   #----------------------------------------------------------------------------
   project = {
-    name        = var.solution.abbr
-    environment = local.environment
+    name        = var.project_name
+    environment = var.env
   }
 
   common_tags = {
     Solution     = var.solution.name
     SolutionAbbr = var.solution.abbr
-    Environment  = local.environment
+    Environment  = var.env
     Provider     = var.solution.provider_name
     Category     = var.solution.category_name
     Region       = var.aws.region
@@ -40,7 +39,6 @@ locals {
     CostCenter   = var.ownership.cost_center
     Owner        = var.ownership.owner_email
     ProjectCode  = var.ownership.project_code
-    # DR-specific tags
     Purpose      = "DisasterRecovery"
     Standby      = "true"
   }
@@ -53,6 +51,17 @@ locals {
     packages      = var.lambda_packages
     source_hashes = var.lambda_source_hashes
   }
+
+  #----------------------------------------------------------------------------
+  # Lambda VPC Configuration
+  #----------------------------------------------------------------------------
+  lambda_vpc = var.application.lambda_vpc_enabled ? {
+    subnet_ids         = module.networking[0].private_subnet_ids_list
+    security_group_ids = [module.security.security_group_ids["idp-lambda"]]
+  } : {
+    subnet_ids         = null
+    security_group_ids = []
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -62,19 +71,64 @@ data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
 #===============================================================================
+# CONFIGURATION CHECKS - Validate variable combinations at plan time
+#===============================================================================
+
+check "alarms_require_sns_topic" {
+  assert {
+    condition     = !var.monitoring.enable_alarms || var.monitoring.sns_topic_arn != null
+    error_message = "monitoring.sns_topic_arn must be set when monitoring.enable_alarms is true."
+  }
+}
+
+check "budget_requires_alert_emails" {
+  assert {
+    condition     = !var.budget.enabled || length(var.budget.alert_emails) > 0
+    error_message = "budget.alert_emails must contain at least one address when budget.enabled is true."
+  }
+}
+
+check "regions_are_distinct" {
+  assert {
+    condition     = var.aws.region != try(var.aws.dr_region, "")
+    error_message = "aws.region and aws.dr_region must be different regions."
+  }
+}
+
+#===============================================================================
 # FOUNDATION - Core infrastructure that other modules depend on
 #===============================================================================
+
 #------------------------------------------------------------------------------
-# Security (KMS + Lambda VPC Security Group)
+# Networking (VPC + Subnets + Route Tables + VPC Endpoints)
+#------------------------------------------------------------------------------
+module "networking" {
+  source = "../../modules/networking"
+  count  = var.application.lambda_vpc_enabled ? 1 : 0
+
+  project     = local.project
+  vpc         = var.vpc
+  subnets     = var.subnets
+  kms_key_arn = module.security.kms_key_arn
+  common_tags = local.common_tags
+
+  depends_on = [module.security]
+}
+
+#------------------------------------------------------------------------------
+# Security (KMS + Security Groups)
 #------------------------------------------------------------------------------
 module "security" {
-  source = "../../modules/solution/security"
+  source = "../../modules/security"
 
   project            = local.project
   security           = var.security
   lambda_vpc_enabled = var.application.lambda_vpc_enabled
-  network            = var.network
+  vpc_id             = var.application.lambda_vpc_enabled ? module.networking[0].vpc_id : null
+  security_groups    = var.security_groups
   common_tags        = local.common_tags
+
+  depends_on = [module.networking]
 }
 
 #------------------------------------------------------------------------------
@@ -114,13 +168,13 @@ module "auth" {
 #===============================================================================
 # CORE SOLUTION - Primary solution components for document processing
 #===============================================================================
+
 #------------------------------------------------------------------------------
 # Storage (S3 + DynamoDB)
-#------------------------------------------------------------------------------
 # DR: S3 receives replicated docs, DynamoDB needs restore from backup
 #------------------------------------------------------------------------------
 module "storage" {
-  source = "../../modules/solution/storage"
+  source = "../../modules/storage"
 
   project        = local.project
   aws_account_id = data.aws_caller_identity.current.account_id
@@ -136,12 +190,12 @@ module "storage" {
 # Human Review (A2I) - Created before document_processing to avoid circular deps
 #------------------------------------------------------------------------------
 module "human_review" {
-  source = "../../modules/solution/human-review"
+  source = "../../modules/human-review"
   count  = var.human_review.enabled ? 1 : 0
 
   project     = local.project
   lambda      = local.lambda
-  vpc         = module.security.lambda_vpc
+  vpc         = local.lambda_vpc
   storage     = module.storage.outputs
   a2i         = var.human_review
   kms_key_arn = module.security.kms_key_arn
@@ -154,11 +208,11 @@ module "human_review" {
 # Document Processing (Textract + Comprehend + Step Functions)
 #------------------------------------------------------------------------------
 module "document_processing" {
-  source = "../../modules/solution/document-processing"
+  source = "../../modules/document-processing"
 
   project      = local.project
   lambda       = local.lambda
-  vpc          = module.security.lambda_vpc
+  vpc          = local.lambda_vpc
   storage      = module.storage.outputs
   ai_services  = { textract = var.textract, comprehend = var.comprehend }
   human_review = var.human_review.enabled ? module.human_review[0].outputs : null
@@ -174,11 +228,11 @@ module "document_processing" {
 # IDP API (REST interface for document upload, status, and results)
 #------------------------------------------------------------------------------
 module "idp_api" {
-  source = "../../modules/solution/api"
+  source = "../../modules/api"
 
   project               = local.project
   lambda                = local.lambda
-  vpc                   = module.security.lambda_vpc
+  vpc                   = local.lambda_vpc
   storage               = module.storage.outputs
   state_machine_arn     = module.document_processing.state_machine_arn
   cognito_user_pool_arn = var.auth.enabled ? module.auth[0].user_pool_arn : null
@@ -194,9 +248,7 @@ module "idp_api" {
 #===============================================================================
 # INTEGRATIONS - Wiring between modules (avoids circular dependencies)
 #===============================================================================
-#------------------------------------------------------------------------------
-# SSM Parameter: Step Functions ARN (for human_review Lambda to lookup at runtime)
-#------------------------------------------------------------------------------
+
 resource "aws_ssm_parameter" "step_functions_arn" {
   count = var.human_review.enabled ? 1 : 0
 
@@ -210,9 +262,6 @@ resource "aws_ssm_parameter" "step_functions_arn" {
   depends_on = [module.document_processing]
 }
 
-#------------------------------------------------------------------------------
-# S3 → Lambda Trigger (document upload triggers processing)
-#------------------------------------------------------------------------------
 resource "aws_lambda_permission" "s3_invoke" {
   statement_id  = "AllowS3Invoke"
   action        = "lambda:InvokeFunction"
@@ -238,11 +287,9 @@ resource "aws_s3_bucket_notification" "document_upload" {
 #===============================================================================
 # OPERATIONS - Observability and compliance (DR does not replicate further)
 #===============================================================================
-#------------------------------------------------------------------------------
-# Best Practices (Budget + Config Rules + GuardDuty)
-#------------------------------------------------------------------------------
+
 module "best_practices" {
-  source = "../../modules/solution/best-practices"
+  source = "../../modules/best-practices"
 
   providers = {
     aws    = aws
@@ -250,7 +297,7 @@ module "best_practices" {
   }
 
   name_prefix   = local.name_prefix
-  environment   = local.environment
+  environment   = var.env
   kms_key_arn   = module.security.kms_key_arn
   sns_topic_arn = var.monitoring.sns_topic_arn != null ? var.monitoring.sns_topic_arn : ""
   common_tags   = local.common_tags
@@ -266,11 +313,8 @@ module "best_practices" {
   depends_on = [module.security]
 }
 
-#------------------------------------------------------------------------------
-# Monitoring (CloudWatch Alarms)
-#------------------------------------------------------------------------------
 module "monitoring" {
-  source = "../../modules/solution/monitoring"
+  source = "../../modules/monitoring"
   count  = var.monitoring.enable_alarms ? 1 : 0
 
   project = local.project

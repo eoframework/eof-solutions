@@ -1,15 +1,14 @@
 #------------------------------------------------------------------------------
 # Project Configuration - PROD Environment
 #------------------------------------------------------------------------------
-# Generated from configuration on 2025-12-02 00:00:41
-#
-# To regenerate: python generate-tfvars.py /path/to/solution
-#------------------------------------------------------------------------------
+
+project_name = "idp"   # Short name used in all resource names (e.g. idp-prod-*)
+env          = "prod"  # Environment identifier - explicit, not inferred from path
 
 aws = {
+  region    = "us-east-1" # Primary AWS region
   dr_region = "us-west-2" # DR region
   profile   = ""          # AWS CLI profile (optional)
-  region    = "us-east-1" # Primary AWS region
 }
 
 ownership = {
@@ -19,8 +18,8 @@ ownership = {
 }
 
 solution = {
-  abbr          = "idp"                             # Solution abbreviation (3-4 chars)
+  name          = "Intelligent Document Processing" # Display name (tags, catalog)
+  abbr          = "idp"                             # Solution abbreviation
+  provider_name = "aws"                             # Provider organisation name
   category_name = "ai"                              # Solution category
-  name          = "intelligent-document-processing" # Solution name for resource naming
-  provider_name = "aws"                             # Provider organization name
 }

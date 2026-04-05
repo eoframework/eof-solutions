@@ -61,6 +61,9 @@ resource "aws_lambda_function" "this" {
   timeout       = var.timeout
   memory_size   = var.memory_size
 
+  # Graviton2 (arm64) by default — 20% cheaper per GB-second, same performance for Python/Node
+  architectures = var.architectures
+
   # Code source - either S3 or local zip
   s3_bucket         = var.s3_bucket
   s3_key            = var.s3_key
@@ -91,6 +94,13 @@ resource "aws_lambda_function" "this" {
   # X-Ray tracing
   tracing_config {
     mode = var.tracing_mode
+  }
+
+  # Structured JSON logging with configurable log level (Provider 5+)
+  logging_config {
+    log_format = var.log_format
+    log_level  = var.log_format == "JSON" ? var.log_level : null
+    log_group  = aws_cloudwatch_log_group.this.name
   }
 
   # Reserved concurrency (optional)

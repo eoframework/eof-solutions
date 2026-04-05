@@ -10,7 +10,7 @@ budget = {
   # [Cost Optimization] Alert email addresses
   alert_emails = []
   # [Cost Optimization] Budget alert thresholds (%)
-  alert_thresholds = "[80, 100]"  # TODO: Replace with actual value
+  alert_thresholds = [80, 100]
   # [Cost Optimization] Enable forecasted spend alerts
   enable_forecast_alert = false
   # [Cost Optimization] Enable AWS Budgets tracking

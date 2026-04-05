@@ -21,6 +21,6 @@ monitoring = {
   lambda_duration_p95_ms    = 60000 # Lambda p95 duration threshold (ms)
   lambda_error_rate_percent = 5     # Lambda error rate threshold (%)
   sfn_failure_threshold     = 5     # Step Functions failure threshold
-  sns_topic_arn             = ""    # SNS topic for alerts
+  sns_topic_arn             = null  # SNS topic ARN - required when enable_alarms = true
   xray_enabled              = true  # Enable X-Ray tracing
 }

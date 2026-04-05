@@ -1,7 +1,8 @@
 #------------------------------------------------------------------------------
 # Secrets Setup - PROD Environment
 #------------------------------------------------------------------------------
-# Pre-provisions secrets before deploying main infrastructure.
+# Pre-provisions IDP secrets before deploying main infrastructure.
+# Run once before the first `terraform apply` in environments/prod.
 #
 # Usage:
 #   cd setup/secrets/prod
@@ -10,15 +11,15 @@
 #------------------------------------------------------------------------------
 
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.10.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.0"
+      version = "~> 6.0"
     }
     random = {
       source  = "hashicorp/random"
-      version = ">= 3.0"
+      version = "~> 3.0"
     }
   }
 }
@@ -28,7 +29,7 @@ terraform {
 #------------------------------------------------------------------------------
 
 variable "aws_region" {
-  description = "AWS region"
+  description = "AWS region (must match environments/prod)"
   type        = string
   default     = "us-east-1"
 }
@@ -49,7 +50,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = "prod-smp"
+      Project     = "idp-prod"
       Environment = "prod"
       ManagedBy   = "Terraform"
       Purpose     = "Secrets"
@@ -64,20 +65,18 @@ provider "aws" {
 module "secrets" {
   source = "../modules/secrets"
 
-  name_prefix = "prod-smp"
+  name_prefix = "idp-prod"
 
-  # Feature flags - Production settings
-  create_kms_key        = true
-  create_db_secret      = true
-  create_cache_secret   = true
-  create_api_key_secret = false
+  # Production: dedicated KMS key, API key, workteam credentials
+  create_kms_key         = true
+  create_api_key_secret  = true
+  create_workteam_secret = true  # Required when human_review.use_private_workforce = true
 
-  # Secret configuration
-  secret_recovery_window = 7  # 7 days for production
+  secret_recovery_window = 7  # 7-day safety window for production
 
   tags = {
     Environment = "prod"
-    Solution    = "sample-solution"
+    Solution    = "intelligent-document-processing"
   }
 }
 
@@ -86,18 +85,18 @@ module "secrets" {
 #------------------------------------------------------------------------------
 
 output "kms_key_arn" {
-  description = "KMS key ARN"
+  description = "KMS key ARN for secrets encryption"
   value       = module.secrets.kms_key_arn
 }
 
-output "db_password_secret_name" {
-  description = "Database password secret name"
-  value       = module.secrets.db_password_secret_name
+output "api_key_secret_name" {
+  description = "Secrets Manager secret name for IDP API key"
+  value       = module.secrets.api_key_secret_name
 }
 
-output "cache_auth_token_param_name" {
-  description = "Cache auth token parameter name"
-  value       = module.secrets.cache_auth_token_param_name
+output "workteam_secret_name" {
+  description = "Secrets Manager secret name for A2I workteam credentials"
+  value       = module.secrets.workteam_secret_name
 }
 
 output "secrets_summary" {

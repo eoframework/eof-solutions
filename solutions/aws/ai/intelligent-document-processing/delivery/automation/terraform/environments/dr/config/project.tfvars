@@ -1,26 +1,25 @@
 #------------------------------------------------------------------------------
 # Project Configuration - DR Environment
 #------------------------------------------------------------------------------
-# Generated from configuration on 2025-12-02 11:50:18
-#
-# To regenerate: python generate-tfvars.py /path/to/solution
-#------------------------------------------------------------------------------
+
+project_name = "idp"  # Short name used in all resource names (e.g. idp-dr-*)
+env          = "dr"   # Environment identifier - explicit, not inferred from path
 
 aws = {
-  dr_region = "us-east-1"  # DR region
-  profile = ""  # AWS CLI profile (optional)
-  region = "us-west-2"  # Primary AWS region
+  region    = "us-west-2" # DR primary region (flipped from prod)
+  dr_region = "us-east-1" # Points back to prod region
+  profile   = ""          # AWS CLI profile (optional)
 }
 
 ownership = {
-  cost_center = "CC-IDP-001"  # Cost center
-  owner_email = "idp-team@example.com"  # Owner email
-  project_code = "PRJ-IDP-2025"  # Project code
+  cost_center  = "CC-IDP-001"           # Cost center
+  owner_email  = "idp-team@example.com" # Owner email
+  project_code = "PRJ-IDP-2025"         # Project code
 }
 
 solution = {
-  abbr = "idp"  # Solution abbreviation (3-4 chars)
-  category_name = "ai"  # Solution category
-  name = "intelligent-document-processing"  # Solution name for resource naming
-  provider_name = "aws"  # Provider organization name
+  name          = "Intelligent Document Processing" # Display name (tags, catalog)
+  abbr          = "idp"                             # Solution abbreviation
+  provider_name = "aws"                             # Provider organisation name
+  category_name = "ai"                              # Solution category
 }

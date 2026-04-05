@@ -9,6 +9,16 @@
 # Project Configuration (project.tfvars)
 #------------------------------------------------------------------------------
 
+variable "project_name" {
+  description = "Short project name used as prefix in all resource names (e.g. 'idp')"
+  type        = string
+}
+
+variable "env" {
+  description = "Environment identifier used in resource names (e.g. 'prod', 'test', 'dr')"
+  type        = string
+}
+
 variable "solution" {
   description = "Solution identity configuration"
   type = object({
@@ -39,15 +49,32 @@ variable "ownership" {
 
 #------------------------------------------------------------------------------
 # Network Configuration (networking.tfvars)
-# Note: Network is optional for IDP - only needed if Lambda VPC mode is enabled
+# Only consumed when application.lambda_vpc_enabled = true.
+# When VPC mode is off these variables are still declared but the networking
+# module is not created (count = 0), so values here are never applied.
 #------------------------------------------------------------------------------
 
-variable "network" {
-  description = "VPC network configuration (optional - for VPC-bound Lambda)"
+variable "vpc" {
+  description = "VPC configuration"
   type = object({
-    vpc_id             = optional(string)
-    private_subnet_ids = optional(list(string), [])
+    cidr_block              = optional(string, "10.10.0.0/16")
+    enable_dns_support      = optional(bool, true)
+    enable_dns_hostnames    = optional(bool, true)
+    enable_nat_gateway      = optional(bool, false)
+    single_nat_gateway      = optional(bool, true)
+    enable_flow_logs        = optional(bool, false)
+    flow_log_retention_days = optional(number, 30)
   })
+  default = {}
+}
+
+variable "subnets" {
+  description = "Map of subnet configurations keyed by descriptive name ({solution}-{tier}-{az})"
+  type = map(object({
+    cidr_block        = string
+    availability_zone = string
+    layer = optional(string, "private")
+  }))
   default = {}
 }
 
@@ -56,12 +83,47 @@ variable "network" {
 #------------------------------------------------------------------------------
 
 variable "security" {
-  description = "Security configuration"
+  description = "KMS encryption configuration"
   type = object({
-    # KMS Encryption
     kms_deletion_window_days = optional(number, 30)
     enable_kms_key_rotation  = optional(bool, true)
   })
+  default = {}
+}
+
+variable "security_groups" {
+  description = "Map of security group configurations (networking.tfvars or security.tfvars)"
+  type = map(object({
+    description = string
+    ingress_cidr = optional(map(object({
+      from_port   = number
+      to_port     = number
+      ip_protocol = string
+      cidr_block  = string
+      description = optional(string, "")
+    })), {})
+    egress_cidr = optional(map(object({
+      from_port   = number
+      to_port     = number
+      ip_protocol = string
+      cidr_block  = string
+      description = optional(string, "")
+    })), {})
+    ingress_sg = optional(map(object({
+      from_port                 = number
+      to_port                   = number
+      ip_protocol               = string
+      source_security_group_key = string
+      description               = optional(string, "")
+    })), {})
+    egress_sg = optional(map(object({
+      from_port                 = number
+      to_port                   = number
+      ip_protocol               = string
+      source_security_group_key = string
+      description               = optional(string, "")
+    })), {})
+  }))
   default = {}
 }
 

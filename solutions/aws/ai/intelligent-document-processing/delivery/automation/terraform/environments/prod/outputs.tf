@@ -8,15 +8,15 @@
 
 output "environment" {
   description = "Environment identifier"
-  value       = local.environment
+  value       = var.env
 }
 
 output "environment_display" {
   description = "Environment display name"
   value = lookup(
     { prod = "Production", test = "Test", dr = "Disaster Recovery" },
-    local.environment,
-    local.environment
+    var.env,
+    var.env
   )
 }
 
@@ -184,8 +184,8 @@ output "deployment_summary" {
     # Identity
     solution_name    = var.solution.name
     solution_abbr    = var.solution.abbr
-    environment      = local.environment
-    environment_name = lookup({ prod = "Production", test = "Test", dr = "Disaster Recovery" }, local.environment, local.environment)
+    environment      = var.env
+    environment_name = lookup({ prod = "Production", test = "Test", dr = "Disaster Recovery" }, var.env, var.env)
     name_prefix      = local.name_prefix
     region           = var.aws.region
 
