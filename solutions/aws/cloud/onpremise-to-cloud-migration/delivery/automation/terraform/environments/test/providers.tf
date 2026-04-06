@@ -23,3 +23,14 @@ provider "aws" {
     tags = local.common_tags
   }
 }
+
+# DR region provider (used by best-practices cross-region backup)
+provider "aws" {
+  alias   = "dr"
+  region  = var.aws.dr_region
+  profile = var.aws.profile != "" ? var.aws.profile : null
+
+  default_tags {
+    tags = local.common_tags
+  }
+}

@@ -189,53 +189,73 @@ variable "monitoring" {
 # Best Practices - Budget (best-practices.tfvars)
 #------------------------------------------------------------------------------
 
+
+#==============================================================================
+# BEST PRACTICES (config/best-practices.tfvars)
+#==============================================================================
+
+#------------------------------------------------------------------------------
+# Budget (best-practices.tfvars)
+#------------------------------------------------------------------------------
 variable "budget" {
   description = "AWS Budgets configuration"
   type = object({
-    enabled            = optional(bool, true)
-    monthly_amount     = optional(number, 5000)
-    alert_thresholds   = optional(list(number), [50, 80, 100])
-    notification_email = optional(string, "")
+    enabled               = optional(bool, false)
+    monthly_amount        = optional(number, 1000)
+    alert_thresholds      = optional(list(number), [50, 80, 100])
+    alert_emails          = optional(list(string), [])
+    enable_forecast_alert = optional(bool, true)
+    forecast_threshold    = optional(number, 100)
   })
   default = {}
 }
 
 #------------------------------------------------------------------------------
-# Best Practices - Config Rules (best-practices.tfvars)
+# Config Rules (best-practices.tfvars)
 #------------------------------------------------------------------------------
-
 variable "config_rules" {
-  description = "AWS Config rules for compliance"
+  description = "AWS Config rules configuration"
   type = object({
-    enabled = optional(bool, false)
+    enabled                  = optional(bool, false)
+    enable_recorder          = optional(bool, true)
+    retention_days           = optional(number, 365)
+    enable_security_rules    = optional(bool, true)
+    enable_reliability_rules = optional(bool, true)
+    enable_operational_rules = optional(bool, true)
+    enable_cost_rules        = optional(bool, true)
   })
   default = {}
 }
 
 #------------------------------------------------------------------------------
-# Best Practices - GuardDuty (best-practices.tfvars)
+# GuardDuty (best-practices.tfvars)
 #------------------------------------------------------------------------------
-
 variable "guardduty" {
-  description = "GuardDuty threat detection"
+  description = "GuardDuty threat detection configuration"
   type = object({
-    enabled = optional(bool, false)
+    enabled                   = optional(bool, false)
+    enable_malware_protection = optional(bool, true)
+    enable_eks_protection     = optional(bool, false)
+    severity_threshold        = optional(number, 7)
   })
   default = {}
 }
 
 #------------------------------------------------------------------------------
-# Best Practices - Backup (best-practices.tfvars)
+# Backup (best-practices.tfvars)
 #------------------------------------------------------------------------------
-
 variable "backup" {
   description = "AWS Backup configuration"
   type = object({
-    enabled           = optional(bool, true)
-    daily_retention   = optional(number, 30)
-    weekly_retention  = optional(number, 90)
-    monthly_retention = optional(number, 365)
-    enable_vault_lock = optional(bool, false)
+    enabled                    = optional(bool, false)
+    daily_retention            = optional(number, 30)
+    weekly_retention           = optional(number, 90)
+    monthly_retention          = optional(number, 365)
+    enable_cross_region        = optional(bool, false)
+    enable_vault_lock          = optional(bool, false)
+    vault_lock_min_retention   = optional(number, 7)
+    vault_lock_max_retention   = optional(number, 365)
+    vault_lock_changeable_days = optional(number, 3)
   })
   default = {}
 }

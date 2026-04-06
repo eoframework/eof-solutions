@@ -336,13 +336,74 @@ resource "aws_cloudwatch_metric_alarm" "aurora_connections" {
   depends_on = [module.database, module.monitoring]
 }
 
+#------------------------------------------------------------------------------
+# Best Practices (Budgets + Config Rules + GuardDuty + Backup)
+#------------------------------------------------------------------------------
+module "best_practices" {
+  source = "../../modules/best-practices"
+
+  providers = {
+    aws    = aws
+    aws.dr = aws.dr
+  }
+
+  name_prefix    = local.name_prefix
+  environment    = local.environment
+  kms_key_arn    = module.kms.key_arn
+  dr_kms_key_arn = var.dr.vault_enabled ? module.dr.dr_kms_key_arn : ""
+  sns_topic_arn  = module.monitoring.sns_topic_arn
+  common_tags    = local.common_tags
+
+  budget = {
+    enabled               = var.budget.enabled
+    monthly_amount        = var.budget.monthly_amount
+    alert_thresholds      = var.budget.alert_thresholds
+    alert_emails          = var.budget.alert_emails
+    enable_forecast_alert = var.budget.enable_forecast_alert
+    forecast_threshold    = var.budget.forecast_threshold
+  }
+
+  config_rules = {
+    enabled                  = var.config_rules.enabled
+    enable_recorder          = var.config_rules.enable_recorder
+    retention_days           = var.config_rules.retention_days
+    enable_security_rules    = var.config_rules.enable_security_rules
+    enable_reliability_rules = var.config_rules.enable_reliability_rules
+    enable_operational_rules = var.config_rules.enable_operational_rules
+    enable_cost_rules        = var.config_rules.enable_cost_rules
+  }
+
+  guardduty_enhanced = {
+    enabled                   = var.guardduty.enabled
+    enable_malware_protection = var.guardduty.enable_malware_protection
+    enable_eks_protection     = var.guardduty.enable_eks_protection
+    severity_threshold        = var.guardduty.severity_threshold
+  }
+
+  backup = {
+    enabled                    = var.backup.enabled
+    daily_retention            = var.backup.daily_retention
+    enable_weekly              = true
+    weekly_retention           = var.backup.weekly_retention
+    enable_monthly             = true
+    monthly_retention          = var.backup.monthly_retention
+    enable_cross_region        = var.backup.enable_cross_region
+    enable_vault_lock          = var.backup.enable_vault_lock
+    vault_lock_min_retention   = var.backup.vault_lock_min_retention
+    vault_lock_max_retention   = var.backup.vault_lock_max_retention
+    vault_lock_changeable_days = var.backup.vault_lock_changeable_days
+  }
+
+  depends_on = [module.monitoring]
+}
+
 #===============================================================================
 # CHECK BLOCKS (plan-time validation)
 #===============================================================================
 check "budget_requires_notification_email" {
   assert {
-    condition     = !var.budget.enabled || var.budget.notification_email != ""
-    error_message = "budget.notification_email must be set when budget.enabled = true"
+    condition     = !var.budget.enabled || length(var.budget.alert_emails) > 0
+    error_message = "budget.alert_emails must contain at least one address when budget.enabled = true"
   }
 }
 

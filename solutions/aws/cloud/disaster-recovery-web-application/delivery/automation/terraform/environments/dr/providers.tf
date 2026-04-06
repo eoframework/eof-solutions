@@ -39,3 +39,14 @@ provider "aws" {
     tags = local.common_tags
   }
 }
+
+# DR alias required by best-practices module (points to primary from DR perspective)
+provider "aws" {
+  alias   = "dr"
+  region  = var.aws.dr_region
+  profile = var.aws.profile != "" ? var.aws.profile : null
+
+  default_tags {
+    tags = local.common_tags
+  }
+}
