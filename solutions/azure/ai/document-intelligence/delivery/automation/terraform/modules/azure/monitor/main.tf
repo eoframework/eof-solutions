@@ -27,6 +27,10 @@ resource "azurerm_log_analytics_workspace" "this" {
   reservation_capacity_in_gb_per_day = var.reservation_capacity_gb
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -41,14 +45,18 @@ resource "azurerm_application_insights" "this" {
   application_type    = var.application_type
   workspace_id        = var.create_log_analytics ? azurerm_log_analytics_workspace.this[0].id : var.log_analytics_workspace_id
 
-  retention_in_days                   = var.app_insights_retention_days
-  daily_data_cap_in_gb                = var.daily_data_cap_gb
+  retention_in_days                     = var.app_insights_retention_days
+  daily_data_cap_in_gb                  = var.daily_data_cap_gb
   daily_data_cap_notifications_disabled = var.daily_data_cap_notifications_disabled
-  sampling_percentage                 = var.sampling_percentage
-  disable_ip_masking                  = var.disable_ip_masking
-  local_authentication_disabled       = var.local_authentication_disabled
+  sampling_percentage                   = var.sampling_percentage
+  disable_ip_masking                    = var.disable_ip_masking
+  local_authentication_disabled         = var.local_authentication_disabled
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -65,7 +73,7 @@ resource "azurerm_monitor_action_group" "this" {
   dynamic "email_receiver" {
     for_each = var.email_receivers
     content {
-      name                    = email_receiver.value.name
+      name                    = email_receiver.key
       email_address           = email_receiver.value.email_address
       use_common_alert_schema = lookup(email_receiver.value, "use_common_alert_schema", true)
     }
@@ -74,7 +82,7 @@ resource "azurerm_monitor_action_group" "this" {
   dynamic "sms_receiver" {
     for_each = var.sms_receivers
     content {
-      name         = sms_receiver.value.name
+      name         = sms_receiver.key
       country_code = sms_receiver.value.country_code
       phone_number = sms_receiver.value.phone_number
     }
@@ -83,7 +91,7 @@ resource "azurerm_monitor_action_group" "this" {
   dynamic "webhook_receiver" {
     for_each = var.webhook_receivers
     content {
-      name                    = webhook_receiver.value.name
+      name                    = webhook_receiver.key
       service_uri             = webhook_receiver.value.service_uri
       use_common_alert_schema = lookup(webhook_receiver.value, "use_common_alert_schema", true)
     }
@@ -92,7 +100,7 @@ resource "azurerm_monitor_action_group" "this" {
   dynamic "azure_function_receiver" {
     for_each = var.azure_function_receivers
     content {
-      name                     = azure_function_receiver.value.name
+      name                     = azure_function_receiver.key
       function_app_resource_id = azure_function_receiver.value.function_app_resource_id
       function_name            = azure_function_receiver.value.function_name
       http_trigger_url         = azure_function_receiver.value.http_trigger_url
@@ -103,7 +111,7 @@ resource "azurerm_monitor_action_group" "this" {
   dynamic "logic_app_receiver" {
     for_each = var.logic_app_receivers
     content {
-      name                    = logic_app_receiver.value.name
+      name                    = logic_app_receiver.key
       resource_id             = logic_app_receiver.value.resource_id
       callback_url            = logic_app_receiver.value.callback_url
       use_common_alert_schema = lookup(logic_app_receiver.value, "use_common_alert_schema", true)
@@ -111,6 +119,10 @@ resource "azurerm_monitor_action_group" "this" {
   }
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -148,10 +160,14 @@ resource "azurerm_monitor_diagnostic_setting" "this" {
 resource "azurerm_portal_dashboard" "this" {
   count = var.create_dashboard ? 1 : 0
 
-  name                = var.dashboard_name
-  resource_group_name = var.resource_group_name
-  location            = var.location
+  name                 = var.dashboard_name
+  resource_group_name  = var.resource_group_name
+  location             = var.location
   dashboard_properties = var.dashboard_properties
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }

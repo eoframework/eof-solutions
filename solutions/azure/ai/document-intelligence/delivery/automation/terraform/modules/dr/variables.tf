@@ -37,6 +37,14 @@ variable "source_cosmos_account_name" {
   type        = string
 }
 
+variable "storage_containers" {
+  description = "Container names from the primary storage module — used for replication rules"
+  type = object({
+    input_container     = string
+    processed_container = string
+  })
+}
+
 variable "dr" {
   description = "DR configuration"
   type = object({

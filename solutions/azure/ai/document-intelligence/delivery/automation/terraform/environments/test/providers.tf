@@ -1,29 +1,26 @@
 #------------------------------------------------------------------------------
-# Azure Document Intelligence - Production Environment
-# Terraform and Provider Configuration
+# Azure Document Intelligence - Test Environment
+# Provider Configuration
+#
+# Credentials are loaded from credentials.auto.tfvars (git-ignored).
+# Generate via: setup/scripts/Initialize-TerraformConfig.ps1
+# Version constraints and backend are defined in versions.tf.
 #------------------------------------------------------------------------------
 
-terraform {
-  required_version = ">= 1.6.0"
-
-  backend "azurerm" {
-    # Values loaded from backend.tfvars via -backend-config flag
-    # Run setup/backend/state-backend.sh to create backend resources
-  }
-
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 3.80"
-    }
-    azuread = {
-      source  = "hashicorp/azuread"
-      version = "~> 2.45"
-    }
-  }
-}
-
+#------------------------------------------------------------------------------
+# Primary provider — Azure Resource Manager
+#------------------------------------------------------------------------------
 provider "azurerm" {
+  environment     = var.azure_environment
+  subscription_id = var.arm_subscription_id
+  tenant_id       = var.arm_tenant_id
+  client_id       = var.arm_client_id
+  client_secret   = var.arm_client_secret
+
+  # Prevents Terraform from auto-registering all resource providers on every
+  # run — requires elevated subscription permissions and slows plan/apply.
+  resource_provider_registrations = "none"
+
   features {
     key_vault {
       purge_soft_delete_on_destroy    = false
@@ -33,20 +30,30 @@ provider "azurerm" {
       prevent_deletion_if_contains_resources = true
     }
   }
-
-  subscription_id = var.azure.subscription_id
-  tenant_id       = var.azure.tenant_id
 }
 
+#------------------------------------------------------------------------------
+# Entra ID (Azure AD) provider
+#------------------------------------------------------------------------------
 provider "azuread" {
-  tenant_id = var.azure.tenant_id
+  environment   = var.azure_environment
+  tenant_id     = var.arm_tenant_id
+  client_id     = var.arm_client_id
+  client_secret = var.arm_client_secret
 }
 
-# DR region provider (for cross-region resources)
+#------------------------------------------------------------------------------
+# DR region provider alias (used when dr.enabled = true)
+#------------------------------------------------------------------------------
 provider "azurerm" {
-  alias = "dr"
-  features {}
+  alias           = "dr"
+  environment     = var.azure_environment
+  subscription_id = var.arm_subscription_id
+  tenant_id       = var.arm_tenant_id
+  client_id       = var.arm_client_id
+  client_secret   = var.arm_client_secret
 
-  subscription_id = var.azure.subscription_id
-  tenant_id       = var.azure.tenant_id
+  resource_provider_registrations = "none"
+
+  features {}
 }

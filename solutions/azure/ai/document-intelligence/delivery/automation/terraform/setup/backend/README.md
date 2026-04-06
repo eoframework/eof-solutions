@@ -1,6 +1,7 @@
 # Terraform State Backend Setup
 
-This directory contains scripts to set up the Azure Storage Account backend for Terraform state.
+Creates the Azure Storage Account backend for Terraform remote state.
+Azure Blob Storage provides built-in lease-based state locking — no separate lock table required.
 
 ## Prerequisites
 
@@ -9,17 +10,13 @@ This directory contains scripts to set up the Azure Storage Account backend for 
 
 ## Usage
 
-### Linux/Mac
-
 ```bash
+# Linux/macOS/WSL
 ./state-backend.sh prod
 ./state-backend.sh test
 ./state-backend.sh dr
-```
 
-### Windows
-
-```cmd
+# Windows
 state-backend.bat prod
 state-backend.bat test
 state-backend.bat dr
@@ -27,21 +24,25 @@ state-backend.bat dr
 
 ## What It Creates
 
-1. Resource Group: `tfstate-{env}-rg`
-2. Storage Account: `tfstate{random}` (globally unique)
-3. Blob Container: `tfstate`
-4. Backend config file: `environments/{env}/backend.tfvars`
+| Resource | Naming Pattern |
+|---|---|
+| Resource Group | `tfstate-{project_name}-{env}-rg` |
+| Storage Account | `tfstate{project_name}{env}{suffix}` (globally unique) |
+| Blob Container | `tfstate` |
+| State Key | `{project_name}-{env}.tfstate` |
 
-## Backend Configuration
+Values are read from `environments/{env}/config/project.tfvars`.
 
-The generated `backend.tfvars` contains:
+## Generated backend.tfvars
 
 ```hcl
-resource_group_name  = "tfstate-prod-rg"
-storage_account_name = "tfstateabc123"
+resource_group_name  = "tfstate-docintel-prod-rg"
+storage_account_name = "tfstatedocintelproabc1"
 container_name       = "tfstate"
 key                  = "docintel-prod.tfstate"
 ```
+
+> `backend.tfvars` is git-ignored. Each developer/pipeline generates their own.
 
 ## Initialize Terraform
 
@@ -49,5 +50,5 @@ After running the setup script:
 
 ```bash
 cd environments/prod
-terraform init -backend-config=backend.tfvars
+./eo-deploy.sh init -backend-config=backend.tfvars
 ```

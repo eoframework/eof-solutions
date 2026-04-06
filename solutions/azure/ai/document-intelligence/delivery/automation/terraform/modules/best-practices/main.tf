@@ -12,9 +12,12 @@ resource "azurerm_recovery_services_vault" "main" {
   location            = var.location
   resource_group_name = var.resource_group_name
   sku                 = "Standard"
-  soft_delete_enabled = true
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 #------------------------------------------------------------------------------

@@ -1,28 +1,29 @@
 #------------------------------------------------------------------------------
 # Project Configuration - TEST Environment
 #------------------------------------------------------------------------------
-# Generated from configuration on 2025-12-03 18:26:50
-#
-# To regenerate: python generate-tfvars.py /path/to/solution
-#------------------------------------------------------------------------------
+
+project_name = "docintel"  # Short name used in all resource names (e.g. docintel-test-*)
+env          = "test"      # Environment identifier — explicit, not inferred from path
+
+azure_environment = "public"  # Azure cloud: "public" (commercial) or "usgovernment"
+
+# Note: arm_subscription_id, arm_tenant_id, arm_client_id, arm_client_secret
+# are defined in credentials.auto.tfvars (git-ignored, never commit)
 
 azure = {
-  dr_region = "westus2"  # DR region for failover
-  region = "eastus"  # Primary Azure region for deployment
-  subscription_id = "[SUBSCRIPTION_ID]"  # Azure subscription identifier
-  tenant_id = "[TENANT_ID]"  # Azure AD tenant identifier
+  region    = "eastus"   # Primary Azure region
+  dr_region = "westus2"  # Secondary region for disaster recovery
 }
 
 ownership = {
-  cost_center = "CC-AI-001"  # Cost center for billing
-  owner_email = "dev-team@company.com"  # Technical owner email
-  project_code = "PRJ-DOCINTEL-2025"  # Project code for tracking
+  cost_center  = "CC-AI-001"             # Cost center for billing allocation
+  owner_email  = "dev-team@company.com"  # Technical owner contact
+  project_code = "PRJ-DOCINTEL-2025"     # Project tracking code
 }
 
 solution = {
-  # Solution abbreviation for resource naming
-  abbr = "docintel"
-  category_name = "ai"  # Solution category
-  name = "Azure Document Intelligence"  # Full solution name for tagging
-  provider_name = "azure"  # Cloud provider name
+  name          = "Azure Document Intelligence" # Full name for tagging and catalog
+  abbr          = "docintel"                    # Abbreviation for resource naming
+  provider_name = "azure"                       # Cloud provider identifier
+  category_name = "ai"                          # Solution category
 }

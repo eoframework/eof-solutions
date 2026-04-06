@@ -49,6 +49,10 @@ resource "azurerm_key_vault" "this" {
   }
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -62,6 +66,10 @@ resource "azurerm_key_vault_key" "this" {
   key_type     = each.value.key_type
   key_size     = lookup(each.value, "key_size", 2048)
   key_opts     = each.value.key_opts
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 
   dynamic "rotation_policy" {
     for_each = lookup(each.value, "rotation_policy", null) != null ? [each.value.rotation_policy] : []

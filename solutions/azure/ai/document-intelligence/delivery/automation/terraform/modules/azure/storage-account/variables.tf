@@ -200,9 +200,8 @@ variable "identity_ids" {
 # Lifecycle Rules
 #------------------------------------------------------------------------------
 variable "lifecycle_rules" {
-  description = "Lifecycle management rules"
-  type = list(object({
-    name         = string
+  description = "Lifecycle management rules. Key is the rule name."
+  type = map(object({
     enabled      = optional(bool, true)
     prefix_match = optional(list(string), [])
     blob_types   = optional(list(string), ["blockBlob"])
@@ -218,7 +217,7 @@ variable "lifecycle_rules" {
       delete_days = optional(number)
     }))
   }))
-  default = []
+  default = {}
 }
 
 #------------------------------------------------------------------------------

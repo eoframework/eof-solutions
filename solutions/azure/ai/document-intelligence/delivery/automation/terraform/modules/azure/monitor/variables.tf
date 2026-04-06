@@ -154,56 +154,51 @@ variable "action_group_enabled" {
 }
 
 variable "email_receivers" {
-  description = "Email receivers"
-  type = list(object({
-    name                    = string
+  description = "Email receivers. Key is the receiver name."
+  type = map(object({
     email_address           = string
     use_common_alert_schema = optional(bool, true)
   }))
-  default = []
+  default = {}
 }
 
 variable "sms_receivers" {
-  description = "SMS receivers"
-  type = list(object({
-    name         = string
+  description = "SMS receivers. Key is the receiver name."
+  type = map(object({
     country_code = string
     phone_number = string
   }))
-  default = []
+  default = {}
 }
 
 variable "webhook_receivers" {
-  description = "Webhook receivers"
-  type = list(object({
-    name                    = string
+  description = "Webhook receivers. Key is the receiver name."
+  type = map(object({
     service_uri             = string
     use_common_alert_schema = optional(bool, true)
   }))
-  default = []
+  default = {}
 }
 
 variable "azure_function_receivers" {
-  description = "Azure Function receivers"
-  type = list(object({
-    name                     = string
+  description = "Azure Function receivers. Key is the receiver name."
+  type = map(object({
     function_app_resource_id = string
     function_name            = string
     http_trigger_url         = string
     use_common_alert_schema  = optional(bool, true)
   }))
-  default = []
+  default = {}
 }
 
 variable "logic_app_receivers" {
-  description = "Logic App receivers"
-  type = list(object({
-    name                    = string
+  description = "Logic App receivers. Key is the receiver name."
+  type = map(object({
     resource_id             = string
     callback_url            = string
     use_common_alert_schema = optional(bool, true)
   }))
-  default = []
+  default = {}
 }
 
 #------------------------------------------------------------------------------

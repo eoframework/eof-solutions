@@ -85,6 +85,10 @@ resource "azurerm_storage_account" "this" {
   }
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -109,7 +113,7 @@ resource "azurerm_storage_management_policy" "this" {
   dynamic "rule" {
     for_each = var.lifecycle_rules
     content {
-      name    = rule.value.name
+      name    = rule.key
       enabled = lookup(rule.value, "enabled", true)
 
       filters {

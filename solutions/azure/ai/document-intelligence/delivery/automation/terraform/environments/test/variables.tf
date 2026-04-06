@@ -1,12 +1,85 @@
 #------------------------------------------------------------------------------
 # Azure Document Intelligence - Test Environment Variables
-#------------------------------------------------------------------------------
-# All configuration is defined as grouped objects for cleaner module calls.
-# Values are set in config/*.tfvars files.
+# All configuration is defined as grouped objects for clean module calls.
+# Values are set in config/*.tfvars. Credentials are in credentials.auto.tfvars.
 #------------------------------------------------------------------------------
 
+#==============================================================================
+# CREDENTIALS (credentials.auto.tfvars — git-ignored, never commit)
+# Generate via: setup/scripts/Initialize-TerraformConfig.ps1
+#==============================================================================
+variable "arm_subscription_id" {
+  description = "Azure subscription ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "arm_tenant_id" {
+  description = "Entra ID (Azure AD) tenant ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "arm_client_id" {
+  description = "Service principal application (client) ID"
+  type        = string
+  sensitive   = true
+}
+
+variable "arm_client_secret" {
+  description = "Service principal client secret"
+  type        = string
+  sensitive   = true
+}
+
+#==============================================================================
+# CONFIGURATION (config/*.tfvars)
+#==============================================================================
+
 #------------------------------------------------------------------------------
-# Project Configuration (project.tfvars)
+# Top-level identifiers (project.tfvars)
+#------------------------------------------------------------------------------
+variable "project_name" {
+  description = "Short project identifier used in all resource names (e.g. docintel-prod-*)."
+  type        = string
+  validation {
+    condition     = can(regex("^[0-9A-Za-z]{3,16}$", var.project_name))
+    error_message = "project_name must be 3-16 alphanumeric characters with no spaces or hyphens."
+  }
+}
+
+variable "env" {
+  description = "Environment identifier — set explicitly, not inferred from directory path."
+  type        = string
+  validation {
+    condition     = contains(["dev", "test", "stage", "dr", "prod"], var.env)
+    error_message = "env must be one of: dev, test, stage, dr, prod."
+  }
+}
+
+variable "azure_environment" {
+  description = "Azure cloud environment. Use 'public' for commercial, 'usgovernment' for sovereign."
+  type        = string
+  default     = "public"
+  validation {
+    condition     = contains(["public", "usgovernment", "usgovernmentl4", "usgovernmentl5", "china"], var.azure_environment)
+    error_message = "azure_environment must be one of: public, usgovernment, usgovernmentl4, usgovernmentl5, china."
+  }
+}
+
+#------------------------------------------------------------------------------
+# Azure region configuration (project.tfvars)
+#------------------------------------------------------------------------------
+variable "azure" {
+  description = "Azure region configuration"
+  type = object({
+    region    = string # Primary deployment region
+    dr_region = string # Secondary / failover region
+  })
+}
+
+#------------------------------------------------------------------------------
+# Solution metadata (project.tfvars)
 #------------------------------------------------------------------------------
 variable "solution" {
   description = "Solution identification and metadata"
@@ -15,16 +88,6 @@ variable "solution" {
     abbr          = string
     provider_name = string
     category_name = string
-  })
-}
-
-variable "azure" {
-  description = "Azure subscription and region configuration"
-  type = object({
-    subscription_id = string
-    tenant_id       = string
-    region          = string
-    dr_region       = string
   })
 }
 
@@ -38,7 +101,7 @@ variable "ownership" {
 }
 
 #------------------------------------------------------------------------------
-# Network Configuration (networking.tfvars)
+# Network configuration (networking.tfvars)
 #------------------------------------------------------------------------------
 variable "network" {
   description = "Virtual network configuration"
@@ -51,7 +114,7 @@ variable "network" {
 }
 
 #------------------------------------------------------------------------------
-# Compute Configuration (compute.tfvars)
+# Compute configuration (compute.tfvars)
 #------------------------------------------------------------------------------
 variable "compute" {
   description = "Azure Functions compute configuration"
@@ -64,44 +127,44 @@ variable "compute" {
 }
 
 #------------------------------------------------------------------------------
-# Storage Configuration (storage.tfvars)
+# Storage configuration (storage.tfvars)
 #------------------------------------------------------------------------------
 variable "storage" {
   description = "Blob storage configuration"
   type = object({
-    account_tier        = string
-    replication_type    = string
-    input_container     = string
-    processed_container = string
-    failed_container    = string
-    archive_container   = string
-    retention_hot_days  = number
-    retention_cool_days = number
+    account_tier         = string
+    replication_type     = string
+    input_container      = string
+    processed_container  = string
+    failed_container     = string
+    archive_container    = string
+    retention_hot_days   = number
+    retention_cool_days  = number
     retention_total_days = number
   })
 }
 
 #------------------------------------------------------------------------------
-# Database Configuration (database.tfvars)
+# Database configuration (database.tfvars)
 #------------------------------------------------------------------------------
 variable "database" {
   description = "Cosmos DB configuration"
   type = object({
-    cosmos_offer_type            = string
-    cosmos_consistency_level     = string
-    cosmos_database_name         = string
-    cosmos_metadata_container    = string
-    cosmos_results_container     = string
-    cosmos_max_throughput        = number
-    cosmos_enable_free_tier      = bool
-    cosmos_backup_type           = string
-    cosmos_backup_interval_hours = number
+    cosmos_offer_type             = string
+    cosmos_consistency_level      = string
+    cosmos_database_name          = string
+    cosmos_metadata_container     = string
+    cosmos_results_container      = string
+    cosmos_max_throughput         = number
+    cosmos_enable_free_tier       = bool
+    cosmos_backup_type            = string
+    cosmos_backup_interval_hours  = number
     cosmos_backup_retention_hours = number
   })
 }
 
 #------------------------------------------------------------------------------
-# Security Configuration (security.tfvars)
+# Security configuration (security.tfvars)
 #------------------------------------------------------------------------------
 variable "security" {
   description = "Security and access control configuration"
@@ -114,10 +177,10 @@ variable "security" {
 }
 
 #------------------------------------------------------------------------------
-# Application Configuration (application.tfvars)
+# Application configuration (application.tfvars)
 #------------------------------------------------------------------------------
 variable "application" {
-  description = "Application settings"
+  description = "Application runtime settings"
   type = object({
     environment          = string
     log_level            = string
@@ -126,7 +189,7 @@ variable "application" {
 }
 
 variable "docintel" {
-  description = "Azure Document Intelligence configuration"
+  description = "Azure Document Intelligence service configuration"
   type = object({
     sku                 = string
     model_invoice       = string
@@ -137,7 +200,7 @@ variable "docintel" {
 }
 
 #------------------------------------------------------------------------------
-# Monitoring Configuration (monitoring.tfvars)
+# Monitoring configuration (monitoring.tfvars)
 #------------------------------------------------------------------------------
 variable "monitoring" {
   description = "Azure Monitor configuration"
@@ -151,7 +214,7 @@ variable "monitoring" {
 }
 
 #------------------------------------------------------------------------------
-# Best Practices Configuration (best-practices.tfvars)
+# Best practices configuration (best-practices.tfvars)
 #------------------------------------------------------------------------------
 variable "backup" {
   description = "Backup and recovery configuration"
@@ -166,13 +229,13 @@ variable "budget" {
   type = object({
     enabled            = bool
     monthly_amount     = number
-    alert_thresholds   = list(number)
+    alert_thresholds   = map(number) # e.g. { warning = 50, critical = 80, maximum = 100 }
     notification_email = string
   })
 }
 
 variable "policy" {
-  description = "Azure Policy configuration"
+  description = "Azure Policy assignment configuration"
   type = object({
     enable_security_policies    = bool
     enable_cost_policies        = bool
@@ -181,7 +244,7 @@ variable "policy" {
 }
 
 #------------------------------------------------------------------------------
-# DR Configuration (dr.tfvars)
+# Disaster recovery configuration (dr.tfvars)
 #------------------------------------------------------------------------------
 variable "dr" {
   description = "Disaster recovery configuration"

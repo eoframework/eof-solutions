@@ -23,6 +23,10 @@ resource "azurerm_virtual_network" "this" {
   }
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -50,6 +54,10 @@ resource "azurerm_subnet" "this" {
       }
     }
   }
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -63,6 +71,10 @@ resource "azurerm_network_security_group" "this" {
   location            = var.location
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 resource "azurerm_network_security_rule" "this" {

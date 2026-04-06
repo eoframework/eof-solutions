@@ -11,6 +11,10 @@ resource "azurerm_user_assigned_identity" "main" {
   location            = var.location
   resource_group_name = var.resource_group_name
   tags                = var.common_tags
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 #------------------------------------------------------------------------------
@@ -31,6 +35,10 @@ resource "azurerm_key_vault_key" "encryption" {
     "verify",
     "wrapKey",
   ]
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 
   rotation_policy {
     automatic {

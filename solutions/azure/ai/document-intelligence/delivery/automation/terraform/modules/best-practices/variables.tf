@@ -40,7 +40,7 @@ variable "budget" {
   type = object({
     enabled            = bool
     monthly_amount     = number
-    alert_thresholds   = list(number)
+    alert_thresholds   = map(number) # e.g. { warning = 50, critical = 80, maximum = 100 }
     notification_email = string
   })
 }

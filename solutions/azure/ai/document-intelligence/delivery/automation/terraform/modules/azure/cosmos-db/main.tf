@@ -76,14 +76,18 @@ resource "azurerm_cosmosdb_account" "this" {
     }
   }
 
-  # Performance options
-  enable_automatic_failover         = var.enable_automatic_failover
-  enable_multiple_write_locations   = var.enable_multiple_write_locations
-  enable_free_tier                  = var.enable_free_tier
-  analytical_storage_enabled        = var.analytical_storage_enabled
-  local_authentication_disabled     = var.local_authentication_disabled
+  # Performance options (azurerm 4.x attribute names)
+  automatic_failover_enabled       = var.automatic_failover_enabled
+  multiple_write_locations_enabled = var.multiple_write_locations_enabled
+  free_tier_enabled                = var.free_tier_enabled
+  analytical_storage_enabled       = var.analytical_storage_enabled
+  local_authentication_disabled    = var.local_authentication_disabled
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 #------------------------------------------------------------------------------

@@ -34,9 +34,8 @@ module "storage_account" {
   }
 
   # Lifecycle policy
-  lifecycle_rules = [
-    {
-      name         = "archive-policy"
+  lifecycle_rules = {
+    archive-policy = {
       enabled      = true
       blob_types   = ["blockBlob"]
       prefix_match = ["${var.storage.processed_container}/"]
@@ -46,7 +45,7 @@ module "storage_account" {
         delete_days          = var.storage.retention_total_days
       }
     }
-  ]
+  }
 
   common_tags = var.common_tags
 }
@@ -62,16 +61,16 @@ module "cosmos_db" {
   location            = var.location
   kind                = "GlobalDocumentDB"
 
-  enable_automatic_failover = true
-  enable_free_tier          = var.database.cosmos_enable_free_tier
+  automatic_failover_enabled = true
+  free_tier_enabled          = var.database.cosmos_enable_free_tier
   consistency_level         = var.database.cosmos_consistency_level
 
-  geo_locations = [
-    {
+  geo_locations = {
+    primary = {
       location          = var.location
       failover_priority = 0
     }
-  ]
+  }
 
   backup_type             = var.database.cosmos_backup_type
   backup_interval_minutes = var.database.cosmos_backup_interval_hours * 60

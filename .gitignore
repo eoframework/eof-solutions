@@ -48,6 +48,11 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
+# Terraform credential files — must never be committed
+# Place actual values in config/credentials.tfvars (use config/credentials.tfvars.example as template)
+**/config/credentials.tfvars
+*.tfbackend
+
 # Temporary files
 *.tmp
 *.temp
@@ -59,15 +64,3 @@ override.tf.json
 # Both raw source files and generated outputs are version controlled
 CLAUDE.md
 ~$*
-
-# Terraform
-.terraform/
-.terraform.lock.hcl
-*.tfstate
-*.tfstate.backup
-*.tfplan
-crash.log
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json

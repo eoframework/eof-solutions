@@ -48,8 +48,8 @@ variable "max_staleness_prefix" {
 # Geo-Locations
 #------------------------------------------------------------------------------
 variable "geo_locations" {
-  description = "List of geo-locations for replication"
-  type = list(object({
+  description = "Map of geo-locations for replication. Key is a logical name (e.g. 'primary', 'secondary')."
+  type = map(object({
     location          = string
     failover_priority = number
     zone_redundant    = optional(bool, false)
@@ -146,19 +146,19 @@ variable "identity_ids" {
 #------------------------------------------------------------------------------
 # Performance
 #------------------------------------------------------------------------------
-variable "enable_automatic_failover" {
+variable "automatic_failover_enabled" {
   description = "Enable automatic failover"
   type        = bool
   default     = true
 }
 
-variable "enable_multiple_write_locations" {
+variable "multiple_write_locations_enabled" {
   description = "Enable multi-region writes"
   type        = bool
   default     = false
 }
 
-variable "enable_free_tier" {
+variable "free_tier_enabled" {
   description = "Enable free tier (one per subscription)"
   type        = bool
   default     = false

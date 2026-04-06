@@ -22,12 +22,11 @@ module "monitor" {
   create_action_group      = true
   action_group_name        = "${var.name_prefix}-alerts"
   action_group_short_name  = "docintel"
-  email_receivers = [
-    {
-      name          = "operations"
+  email_receivers = {
+    operations = {
       email_address = var.monitoring.alert_email
     }
-  ]
+  }
 
   # Diagnostic Settings
   diagnostic_settings = {
