@@ -12,7 +12,7 @@
 # Operational Excellence: AWS Config Rules
 #------------------------------------------------------------------------------
 module "config_rules" {
-  source = "../aws/best-practices/operational-excellence/config-rules"
+  source = "../aws/well-architected/operational-excellence/config-rules"
   count  = var.config_rules.enabled ? 1 : 0
 
   name_prefix        = var.name_prefix
@@ -36,7 +36,7 @@ module "config_rules" {
 # Security: Enhanced GuardDuty
 #------------------------------------------------------------------------------
 module "guardduty_enhanced" {
-  source = "../aws/best-practices/security/guardduty"
+  source = "../aws/well-architected/security/guardduty"
   count  = var.guardduty_enhanced.enabled ? 1 : 0
 
   name_prefix         = var.name_prefix
@@ -60,7 +60,7 @@ module "guardduty_enhanced" {
 # Reliability: AWS Backup Plans
 #------------------------------------------------------------------------------
 module "backup_plans" {
-  source = "../aws/best-practices/reliability/backup-plans"
+  source = "../aws/well-architected/reliability/backup-plans"
   count  = var.backup.enabled ? 1 : 0
 
   providers = {
@@ -110,7 +110,7 @@ module "backup_plans" {
 # Cost Optimization: AWS Budgets
 #------------------------------------------------------------------------------
 module "budgets" {
-  source = "../aws/best-practices/cost-optimization/budgets"
+  source = "../aws/well-architected/cost-optimization/budgets"
   count  = var.budget.enabled ? 1 : 0
 
   name_prefix    = var.name_prefix
