@@ -11,8 +11,6 @@ aws.profile,Project,,,,AWS CLI profile (optional),No,String,Valid profile,Confid
 ownership.cost_center,Project,CC-IDP-001,CC-IDP-001,CC-IDP-001,Cost center,Yes,String,Valid string,Public,Infrastructure,,From SOW COST_ALLOCATION_TAGS,2025-12-01
 ownership.owner_email,Project,idp-team@example.com,idp-team@example.com,idp-team@example.com,Owner email,Yes,String,Valid email,Confidential,Infrastructure,,Team notifications,2025-12-01
 ownership.project_code,Project,PRJ-IDP-2025,PRJ-IDP-2025,PRJ-IDP-2025,Project code,Yes,String,Valid string,Public,Infrastructure,,Tracking code,2025-12-01
-network.vpc_id,Networking,,,,VPC ID for Lambda VPC mode (optional),No,String,Valid VPC ID,Confidential,Networking,,Only if lambda_vpc_enabled=true,2025-12-01
-network.private_subnet_ids,Networking,[],[],[],Private subnet IDs for Lambda VPC mode,No,List(String),Valid subnet IDs,Confidential,Networking,,Only if lambda_vpc_enabled=true,2025-12-01
 security.kms_deletion_window_days,Security,30,7,30,KMS key deletion window (days),Yes,Integer,7-30,Public,Security,,Protection period,2025-12-01
 security.enable_kms_key_rotation,Security,true,true,true,Enable KMS key rotation,Yes,Boolean,true|false,Public,Security,,Security best practice,2025-12-01
 auth.enabled,Security,true,true,true,Enable Cognito authentication,Yes,Boolean,true|false,Public,Security,,API auth,2025-12-01
