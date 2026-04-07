@@ -1,185 +1,55 @@
-# Architecture Diagram Generation
+# Architecture Diagram
 
-This directory contains **two approaches** for creating the AWS IDP architecture diagram:
+This directory contains the architecture diagram for this solution.
 
-## 🚀 **Recommended: Automated Generation (Python + Official AWS Icons)**
+## Authoritative Guide
 
-### Overview
-Use the `generate_diagram.py` script to instantly create a professional diagram with **official AWS architecture icons**. This is the fastest and most professional approach.
+Read **`eof-tools/guidance/diagrams/DIAGRAMS.md`** before editing any diagram files.
+It covers:
+- How to derive provider-specific icon imports from `metadata.yml`
+- EO brand standards (cluster colours, edge styles, layout direction)
+- Draw.io vendor icon discovery (works for any vendor)
+- Fallback rules when a specific icon doesn't exist
 
-### Prerequisites
+## Files in This Directory
+
+| File | Purpose |
+|------|---------|
+| `architecture-diagram.drawio` | **Authoritative source** — edit this in Draw.io |
+| `generate_diagram.py` | Python fallback script — used when Draw.io CLI is not available |
+| `architecture-diagram.png` | Generated output — used in presentations and docs |
+| `DIAGRAM_REQUIREMENTS.md` | Component spec for this solution — edit for your solution |
+| `README.md` | This file |
+
+## Generating the PNG
+
 ```bash
-# Install Python library
-pip3 install diagrams
-
-# Install Graphviz (required)
-sudo apt-get install graphviz  # Ubuntu/Debian
-# OR
-brew install graphviz           # macOS
-# OR
-choco install graphviz          # Windows
+cd solutions/{provider}/{category}/{solution}/assets/diagrams
+python3 /mnt/c/projects/wsl/eof-tools/utils/export_drawio.py
+# Output: architecture-diagram.png
 ```
 
-### Usage
-```bash
-# Generate the diagram
-python3 generate_diagram.py
+The exporter auto-detects the best available method — no configuration needed:
+1. **Draw.io CLI** (Linux) — pixel-perfect match to the `.drawio` visual
+2. **Draw.io desktop on Windows** (WSL) — pixel-perfect match, auto-detected
+3. **`generate_diagram.py`** — fallback, always available, different visual style
 
-# Output: ../images/architecture-diagram.png
-# ✅ Professional diagram with official AWS icons created instantly!
-```
+## Editing the Diagram
 
-### Features
-- ✅ **Official AWS icons** from AWS Architecture Icon set
-- ✅ **Instant generation** - no manual work needed
-- ✅ **Version controlled** - diagram defined as code
-- ✅ **Consistent styling** - professional layouts every time
-- ✅ **Easy updates** - change Python code and regenerate
-
-### Example Output
-The script creates a diagram showing:
-- Document Ingestion (S3 Input Bucket)
-- Processing Orchestration (Lambda, Step Functions)
-- AI/ML Processing (Textract, Comprehend)
-- Data Layer (DynamoDB, S3 Output)
-- API Integration (API Gateway, SQS, SNS)
-- Infrastructure (CloudWatch, Secrets Manager)
-- All connections and data flows with labeled arrows
-
-### Regenerate Documents
-After generating the diagram:
-```bash
-cd /path/to/eof-tools
-python3 doc-tools/solution-doc-builder.py \
-  --path solutions/aws/ai/intelligent-document-processing \
-  --force
-```
-
----
-
-## ✏️ **Alternative: Manual Editing (Draw.io)**
-
-### Overview
-If you need to manually customize the diagram, use the `architecture-diagram.drawio` file in Draw.io Desktop.
-
-### Prerequisites
-- Download Draw.io Desktop: https://github.com/jgraph/drawio-desktop/releases
-
-### Usage
-```bash
-# Open in Draw.io
-drawio architecture-diagram.drawio
-
-# OR double-click the file if Draw.io is installed
-```
-
-### Steps
-1. **Enable AWS Icons:**
-   - Click "More Shapes..." in left sidebar
-   - Scroll to "Networking" section
-   - Check "AWS 19" (latest AWS architecture icons)
-   - Click "Apply"
-
-2. **Build Your Diagram:**
-   - Drag AWS service icons from the sidebar
-   - Position them on the canvas
-   - Use the Connector tool (press 'C') to draw arrows
-   - Add labels and descriptions
-
-3. **Export to PNG:**
-   - Select all (Ctrl+A / Cmd+A)
-   - File > Export as > PNG
-   - Settings: 300 DPI, 10px border
-   - Save to: `../images/architecture-diagram.png`
-
-4. **Regenerate Documents:**
+1. Open `architecture-diagram.drawio` in Draw.io Desktop
+2. Enable your vendor's icon pack: **More Shapes → [vendor] → Apply**
+   - See DIAGRAMS.md "Draw.io with Vendor Icons" for shape discovery instructions
+3. Edit the diagram
+4. Regenerate the PNG:
    ```bash
-   cd /path/to/eof-tools
-   python3 doc-tools/solution-doc-builder.py \
-     --path solutions/aws/ai/intelligent-document-processing \
-     --force
+   python3 /mnt/c/projects/wsl/eof-tools/utils/export_drawio.py
    ```
 
-### Detailed Instructions
-See `DIAGRAM_REQUIREMENTS.md` for:
-- Complete list of required AWS components
-- Layout recommendations
-- AWS icon reference table
-- Step-by-step Draw.io instructions
+## Checklist
 
----
-
-## 📊 **Comparison**
-
-| Feature | Python Script | Draw.io Manual |
-|---------|--------------|----------------|
-| **Speed** | ⚡ Instant | 🐢 30-60 minutes |
-| **AWS Icons** | ✅ Official icons | ✅ Official icons |
-| **Quality** | 🏆 Professional | 🎨 Custom styling |
-| **Editability** | Python code | Visual editor |
-| **Version Control** | ✅ Code-based | ⚠️ Binary file |
-| **Consistency** | ✅ Always consistent | ⚠️ Manual variations |
-| **Learning Curve** | Python knowledge | Draw.io skills |
-
----
-
-## 🎯 **Recommended Workflow**
-
-### For New Diagrams:
-1. **Start with Python script** - Get a professional baseline instantly
-2. **Review the output** - Check if it meets your needs
-3. **If customization needed** - Open in Draw.io and refine
-
-### For Updates:
-1. **Small changes:** Edit Python script and regenerate (fastest)
-2. **Major redesign:** Edit in Draw.io manually (most flexible)
-
-### For Production:
-- Use **Python script** for consistency across all solutions
-- Keep **Draw.io file** for one-off customizations
-
----
-
-## 📁 **Files in This Directory**
-
-- **`generate_diagram.py`** - Python script for automated generation (RECOMMENDED)
-- **`architecture-diagram.drawio`** - Draw.io template for manual editing
-- **`DIAGRAM_REQUIREMENTS.md`** - Detailed component specifications
-- **`README.md`** - This file
-
----
-
-## 🆘 **Troubleshooting**
-
-### Python Script Issues
-
-**Error: "dot: command not found"**
-```bash
-# Graphviz not installed
-sudo apt-get install graphviz
-```
-
-**Error: "ModuleNotFoundError: No module named 'diagrams'"**
-```bash
-# Diagrams library not installed
-pip3 install diagrams
-```
-
-### Draw.io Issues
-
-**Can't find AWS icons:**
-- Click "More Shapes..." → Check "AWS 19" → Apply
-- Restart Draw.io if icons don't appear
-
-**Export quality is poor:**
-- Use 300 DPI setting in export
-- Export PNG, not JPEG
-
----
-
-## 📚 **References**
-
-- **Diagrams Library:** https://diagrams.mingrammer.com/
-- **AWS Architecture Icons:** https://aws.amazon.com/architecture/icons/
-- **Draw.io Documentation:** https://www.diagrams.net/doc/
-- **AWS Well-Architected:** https://aws.amazon.com/architecture/well-architected/
+- [ ] `architecture-diagram.drawio` updated with solution architecture
+- [ ] `DIAGRAM_REQUIREMENTS.md` updated with this solution's components
+- [ ] PNG regenerated via `export_drawio.py` after any `.drawio` changes
+- [ ] Diagram shows all major components and data flows
+- [ ] Vendor-specific icons used where available
+- [ ] EO brand cluster colours applied

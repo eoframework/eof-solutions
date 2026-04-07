@@ -1,106 +1,88 @@
 #!/usr/bin/env python3
 """
-Sample Solution - Architecture Diagram Generator
+Architecture Diagram Generator — Starter Template
 
-This script uses the 'diagrams' library to create a professional architecture
-diagram. Customize this for your specific solution and cloud provider.
+BEFORE EDITING THIS FILE:
+1. Read metadata.yml — identify your `provider` field (aws / azure / gcp / onprem / k8s / etc.)
+2. Read eof-tools/guidance/diagrams/DIAGRAMS.md — authoritative guide covering:
+   - How to resolve vendor-specific icon imports from the provider field
+   - EO brand standards (cluster colours, edge styles, layout direction)
+   - Worked examples for AWS, Azure, and GCP
+3. Replace the generic icons below with provider-specific imports
+4. Redefine clusters, nodes, and edges to match your solution architecture
+5. Replace DIAGRAM_REQUIREMENTS.md with your solution's component specifications
 
 Prerequisites:
     pip install diagrams
-    sudo apt-get install graphviz  # or brew install graphviz on macOS
+    sudo apt-get install graphviz    # Ubuntu/Debian/WSL
+    brew install graphviz             # macOS
+    choco install graphviz            # Windows
 
 Usage:
     python3 generate_diagram.py
-
-Output:
-    architecture-diagram.png
+    # Output: architecture-diagram.png
 """
 
+import sys
+sys.path.insert(0, '/mnt/c/projects/wsl/eof-tools/utils')
+from diagram_utils import GRAPH_ATTR, NODE_ATTR, EDGE_ATTR, EO_CLUSTER_COLOURS
+
 from diagrams import Diagram, Cluster, Edge
+
+# ── Replace these generic imports with provider-specific icons ────────────────
+# Read eof-tools/guidance/diagrams/DIAGRAMS.md to find the correct imports
+# for your provider (aws, azure, gcp, onprem, k8s, etc.)
+# ─────────────────────────────────────────────────────────────────────────────
 from diagrams.generic.compute import Rack
 from diagrams.generic.network import Firewall, Router
 from diagrams.generic.storage import Storage
 from diagrams.generic.database import SQL
-from diagrams.generic.os import Windows, LinuxGeneral
 from diagrams.onprem.client import Users
-from diagrams.onprem.monitoring import Grafana
-from diagrams.onprem.security import Vault
 
-# Diagram configuration
-graph_attr = {
-    "fontsize": "16",
-    "bgcolor": "white",
-    "pad": "0.5",
-}
 
-node_attr = {
-    "fontsize": "12",
-}
-
-edge_attr = {
-    "fontsize": "10",
-}
-
+# ── Replace diagram title and filename ───────────────────────────────────────
 with Diagram(
-    "Enterprise Cloud Migration Architecture",
-    filename="architecture-diagram",
+    "Solution Architecture",          # Update: solution name
+    filename="architecture-diagram",  # Do not change: output filename
     show=False,
-    direction="LR",
-    graph_attr=graph_attr,
-    node_attr=node_attr,
-    edge_attr=edge_attr,
+    direction="LR",                   # LR = left-to-right; TB = top-to-bottom
+    graph_attr=GRAPH_ATTR,
+    node_attr=NODE_ATTR,
+    edge_attr=EDGE_ATTR,
 ):
 
-    # Users/Clients
+    # ── External users / on-premises systems ─────────────────────────────────
     users = Users("End Users")
 
-    # Presentation Tier
-    with Cluster("Presentation Tier"):
-        firewall = Firewall("WAF/Firewall")
-        load_balancer = Router("Load Balancer")
+    # ── Replace cluster names and colours based on your solution ─────────────
+    # Available colours: management, security, network, workload, identity,
+    #                    external, data, devops
+    # See eof-tools/utils/diagram_utils.py for hex values
+    # ─────────────────────────────────────────────────────────────────────────
 
-    # Application Tier
-    with Cluster("Application Tier"):
-        app_server1 = Rack("App Server 1")
-        app_server2 = Rack("App Server 2")
+    with Cluster("Control Plane", graph_attr={"bgcolor": EO_CLUSTER_COLOURS["management"]}):
+        control = Rack("Control Service")
 
-    # Data Tier
-    with Cluster("Data Tier"):
-        database = SQL("Primary Database")
-        storage = Storage("File Storage")
+    with Cluster("Network Layer", graph_attr={"bgcolor": EO_CLUSTER_COLOURS["network"]}):
+        fw = Firewall("Firewall")
+        router = Router("Load Balancer")
 
-    # Infrastructure Services
-    with Cluster("Infrastructure Services"):
-        monitoring = Grafana("Monitoring\n& Logging")
-        secrets = Vault("Secrets\nManagement")
+    with Cluster("Application Layer", graph_attr={"bgcolor": EO_CLUSTER_COLOURS["workload"]}):
+        app = Rack("Application")
 
-    # Data Flow
-    # 1. User requests through firewall
-    users >> Edge(label="HTTPS") >> firewall
+    with Cluster("Data Layer", graph_attr={"bgcolor": EO_CLUSTER_COLOURS["data"]}):
+        db = SQL("Database")
+        store = Storage("Storage")
 
-    # 2. Firewall to load balancer
-    firewall >> Edge(label="Filter") >> load_balancer
+    # ── Replace connections with actual data flows ────────────────────────────
+    # See DIAGRAMS.md for edge style conventions (solid, dashed, dotted)
+    # ─────────────────────────────────────────────────────────────────────────
+    users >> Edge(label="HTTPS") >> fw
+    fw >> Edge(label="Filtered") >> router
+    router >> Edge(label="Routes") >> app
+    app >> Edge(label="Query") >> db
+    app >> Edge(label="Store") >> store
+    control >> Edge(label="Governs", style="dotted") >> app
 
-    # 3. Load balancer distributes to app servers
-    load_balancer >> Edge(label="Round Robin") >> app_server1
-    load_balancer >> Edge(label="Round Robin") >> app_server2
 
-    # 4. App servers connect to data layer
-    app_server1 >> Edge(label="Query") >> database
-    app_server2 >> Edge(label="Query") >> database
-    app_server1 >> Edge(label="Files") >> storage
-    app_server2 >> Edge(label="Files") >> storage
-
-    # 5. Monitoring connections
-    app_server1 >> Edge(label="Metrics", style="dashed") >> monitoring
-    app_server2 >> Edge(label="Metrics", style="dashed") >> monitoring
-    database >> Edge(label="Logs", style="dashed") >> monitoring
-
-    # 6. Secrets management
-    app_server1 >> Edge(label="Credentials", style="dotted") >> secrets
-    app_server2 >> Edge(label="Credentials", style="dotted") >> secrets
-
-print("✅ Diagram generated: architecture-diagram.png")
-print("\nTo view the diagram:")
-print("  - Open architecture-diagram.png")
-print("  - Or regenerate documents: solution-doc-builder.py --path solution-template/.../sample-solution --force")
+print("Architecture diagram generated: architecture-diagram.png")
